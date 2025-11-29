@@ -3,10 +3,10 @@ requires = ["scikit-build-core>=0.5.1", "pybind11>=2.12", "cmake>=3.18"]
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "crispr-gpu"
+name = "crispr"
 version = "0.1.0"
 description = "CUDA-accelerated CRISPR off-target search"
-authors = [{ name = "crispr-gpu authors" }]
+authors = [{ name = "crispr authors" }]
 license = { text = "MIT" }
 readme = "../README.md"
 requires-python = ">=3.8"

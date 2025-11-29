@@ -45,6 +45,8 @@ for h in hits[:5]:
 ## Install (from source)
 
 ```bash
+pip install crispr            # from PyPI
+# or build locally
 cmake -B build -S . -DCRISPR_GPU_ENABLE_CUDA=ON -DCRISPR_GPU_BUILD_PYTHON=ON
 cmake --build build --config Release
 ctest --output-on-failure --test-dir build   # optional
