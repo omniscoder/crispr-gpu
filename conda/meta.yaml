@@ -1,4 +1,4 @@
-{% set name = "crispr-gpu" %}
+{% set name = "crispr" %}
 {% set version = "0.1.0" %}
 
 package:
