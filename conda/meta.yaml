@@ -10,8 +10,7 @@ source:
   git_rev: v{{ version }}
 
 build:
-  noarch: python
-  script: {{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv
+  script: SKBUILD_CONFIGURE_OPTIONS="-DCRISPR_GPU_ENABLE_CUDA=OFF" {{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv
 
 requirements:
   host:
@@ -19,6 +18,7 @@ requirements:
     - pip
     - scikit-build-core
     - cmake
+    - ninja
   run:
     - python >=3.9
 
