@@ -10,17 +10,39 @@ source:
   git_rev: v{{ version }}
 
 build:
-  script: SKBUILD_CONFIGURE_OPTIONS="-DCRISPR_GPU_ENABLE_CUDA=OFF" {{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv
+  number: 0
 
-requirements:
-  host:
-    - python >=3.9
-    - pip
-    - scikit-build-core
-    - cmake
-    - ninja
-  run:
-    - python >=3.9
+outputs:
+  - name: {{ name }}-cpu
+    script: CPU=1 SKBUILD_CONFIGURE_OPTIONS="-DCRISPR_GPU_ENABLE_CUDA=OFF" {{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv
+    requirements:
+      host:
+        - python >=3.9
+        - pip
+        - scikit-build-core
+        - cmake
+        - ninja
+      run:
+        - python >=3.9
+    about:
+      summary: CPU build of crispr-gpu (CUDA disabled)
+
+  - name: {{ name }}
+    script: SKBUILD_CONFIGURE_OPTIONS="-DCRISPR_GPU_ENABLE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=61" {{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv
+    requirements:
+      host:
+        - python >=3.9
+        - pip
+        - scikit-build-core
+        - cmake
+        - ninja
+        - cuda-nvcc >=12
+        - cudatoolkit >=12
+      run:
+        - python >=3.9
+        - cudatoolkit >=12
+    about:
+      summary: CUDA-enabled build of crispr-gpu
 
 about:
   home: https://github.com/omniscoder/crispr-gpu

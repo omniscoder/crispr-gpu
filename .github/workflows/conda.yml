@@ -27,19 +27,19 @@ jobs:
         run: conda install -y conda-build anaconda-client
       - name: Build recipe
         shell: bash -l {0}
-        run: conda build conda
+        run: conda build conda --output-folder /tmp/conda-bld
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: conda-bld
-          path: /usr/share/miniconda/conda-bld/**/*.tar.bz2
+          path: /tmp/conda-bld/**/*.tar.bz2
       - name: Upload to Anaconda
         if: env.ANACONDA_TOKEN != ''
         shell: bash -l {0}
         env:
           ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
-          conda build conda --output > pkgs.txt
+          conda build conda --output-folder /tmp/conda-bld --output > pkgs.txt
           while read -r pkg; do
             echo "Uploading $pkg"
             anaconda -t "$ANACONDA_TOKEN" upload --skip-existing "$pkg"
