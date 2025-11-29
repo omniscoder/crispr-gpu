@@ -1,0 +1,13 @@
+build/
+*.o
+*.obj
+*.pdb
+*.lib
+*.dll
+*.so
+*.dylib
+__pycache__/
+*.pyc
+*.pyo
+.vscode/
+.idea/

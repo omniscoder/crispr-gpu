@@ -1,0 +1,4 @@
+set(PYBIND11_FINDPYTHON ON)
+pybind11_add_module(crispr_gpu_py MODULE bindings.cpp)
+target_link_libraries(crispr_gpu_py PRIVATE crispr_gpu)
+set_target_properties(crispr_gpu_py PROPERTIES OUTPUT_NAME crispr_gpu)

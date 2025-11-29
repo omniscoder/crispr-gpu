@@ -1,0 +1,87 @@
+#pragma once
+
+#include <cstdint>
+#include <string>
+#include <vector>
+#include <stdexcept>
+#include <array>
+
+namespace crispr_gpu {
+
+enum class ScoreModel {
+  Hamming,
+  MIT,
+  CFD
+};
+
+enum class Backend {
+  CPU,
+  GPU
+};
+
+struct ScoreParams {
+  ScoreModel model{ScoreModel::Hamming};
+  // Future: loadable tables for MIT/CFD
+};
+
+struct EngineParams {
+  ScoreParams score_params{};
+  uint8_t max_mismatches{4};
+  Backend backend{
+#ifdef CRISPR_GPU_ENABLE_CUDA
+      Backend::GPU
+#else
+      Backend::CPU
+#endif
+  };
+};
+
+struct Guide {
+  std::string name;
+  std::string sequence;  // raw bases
+  std::string pam{"NGG"};
+};
+
+struct EncodedGuide {
+  uint64_t bits{0};
+  uint8_t length{0};
+  std::string name;
+};
+
+struct SiteRecord {
+  uint64_t seq_bits{0};
+  uint32_t chrom_id{0};
+  uint32_t pos{0};
+  uint8_t strand{0}; // 0 = '+', 1 = '-'
+};
+
+struct ChromInfo {
+  std::string name;
+  uint64_t length{0};
+};
+
+struct IndexMeta {
+  uint8_t guide_length{20};
+  std::string pam{"NGG"};
+  bool both_strands{true};
+};
+
+struct OffTargetHit {
+  std::string guide_name;
+  uint32_t chrom_id{0};
+  uint32_t pos{0};
+  char strand{'+'};
+  uint8_t mismatches{0};
+  float score{0.0f};
+};
+
+// Utility helpers
+uint8_t base_to_bits(char b);
+char bits_to_base(uint8_t bits);
+uint64_t encode_sequence_2bit(const std::string &seq);
+std::string decode_sequence_2bit(uint64_t bits, uint8_t length);
+std::string revcomp(const std::string &seq);
+
+uint8_t hamming_distance_2bit(uint64_t a, uint64_t b, uint8_t length);
+
+} // namespace crispr_gpu

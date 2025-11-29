@@ -1,0 +1,8 @@
+cff-version: 1.2.0
+title: "crispr-gpu"
+authors:
+  - family-names: "crispr-gpu contributors"
+version: "0.1.0"
+license: MIT
+date-released: 2025-11-29
+message: "Please cite this software if you use it."
