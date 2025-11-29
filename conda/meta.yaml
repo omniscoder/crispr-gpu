@@ -1,0 +1,33 @@
+{% set name = "crispr-gpu" %}
+{% set version = "0.1.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  git_url: https://github.com/omniscoder/crispr-gpu.git
+  git_rev: v{{ version }}
+
+build:
+  noarch: python
+  script: {{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv
+
+requirements:
+  host:
+    - python >=3.9
+    - pip
+    - scikit-build-core
+    - cmake
+  run:
+    - python >=3.9
+
+about:
+  home: https://github.com/omniscoder/crispr-gpu
+  license: MIT
+  license_file: LICENSE
+  summary: CUDA-accelerated CRISPR off-target search with MIT/CFD scoring
+
+extra:
+  recipe-maintainers:
+    - omnis-coder
