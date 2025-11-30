@@ -294,9 +294,11 @@ OffTargetEngine::OffTargetEngine(const GenomeIndex &index, EngineParams params)
   }
 #ifdef CRISPR_GPU_ENABLE_CUDA
   int dev_count = 0;
-  cudaError_t err = cudaGetDeviceCount(&dev_count);
-  if (params_.backend == Backend::GPU && (err != cudaSuccess || dev_count == 0)) {
-    params_.backend = Backend::CPU;
+  if (params_.backend == Backend::GPU) {
+    cudaError_t err = cudaGetDeviceCount(&dev_count);
+    if (err != cudaSuccess || dev_count == 0) {
+      params_.backend = Backend::CPU;
+    }
   }
 #endif
 }

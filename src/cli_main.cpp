@@ -7,8 +7,32 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <chrono>
+#include <cstdio>
 
 using namespace crispr_gpu;
+
+static bool timing_enabled() {
+  static int cached = -1;
+  if (cached == -1) {
+    const char *env = std::getenv("CRISPR_GPU_TIMING");
+    cached = (env && env[0] != '0') ? 1 : 0;
+  }
+  return cached == 1;
+}
+
+struct ScopedTimer {
+  const char *name;
+  bool active;
+  std::chrono::steady_clock::time_point start;
+  ScopedTimer(const char *n, bool on) : name(n), active(on), start(std::chrono::steady_clock::now()) {}
+  ~ScopedTimer() {
+    if (!active) return;
+    auto end = std::chrono::steady_clock::now();
+    double ms = std::chrono::duration<double, std::milli>(end - start).count();
+    std::fprintf(stderr, "[timing] %s: %.3f ms\n", name, ms);
+  }
+};
 
 struct CLIOptionsIndex {
   std::string fasta;
@@ -92,6 +116,7 @@ int main(int argc, char **argv) {
       return 0;
     }
     if (sub == "index") {
+      ScopedTimer t_total("cli.index.total", timing_enabled());
       CLIOptionsIndex opt;
       for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -109,11 +134,19 @@ int main(int argc, char **argv) {
       params.guide_length = opt.guide_len;
       params.pam = opt.pam;
       params.both_strands = opt.both_strands;
-      auto idx = GenomeIndex::build(opt.fasta, params);
-      idx.save(opt.out);
+      GenomeIndex idx;
+      {
+        ScopedTimer t_build("cli.index.build", timing_enabled());
+        idx = GenomeIndex::build(opt.fasta, params);
+      }
+      {
+        ScopedTimer t_save("cli.index.save", timing_enabled());
+        idx.save(opt.out);
+      }
       std::cerr << "Index written to " << opt.out << " with " << idx.sites().size() << " sites\n";
       return 0;
     } else if (sub == "score") {
+      ScopedTimer t_total("cli.score.total", timing_enabled());
       CLIOptionsScore opt;
       for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -128,17 +161,33 @@ int main(int argc, char **argv) {
       if (opt.index_path.empty() || opt.guides_path.empty()) {
         throw std::runtime_error("--index and --guides are required");
       }
-      auto idx = GenomeIndex::load(opt.index_path);
-      auto guides = read_guides(opt.guides_path);
+      GenomeIndex idx;
+      {
+        ScopedTimer t_load_index("cli.score.load_index", timing_enabled());
+        idx = GenomeIndex::load(opt.index_path);
+      }
+      std::vector<Guide> guides;
+      {
+        ScopedTimer t_read_guides("cli.score.read_guides", timing_enabled());
+        guides = read_guides(opt.guides_path);
+      }
       EngineParams ep;
       ep.max_mismatches = opt.max_mm;
       ep.score_params.model = opt.score_model;
       ep.backend = opt.backend;
       if (!opt.cfd_table.empty()) {
+        ScopedTimer t_cfd("cli.score.load_cfd", timing_enabled());
         load_cfd_tables(opt.cfd_table);
       }
-      OffTargetEngine engine(idx, ep);
-      auto hits = engine.score_guides(guides);
+      OffTargetEngine engine([&]() {
+        ScopedTimer t_engine("cli.score.engine_init", timing_enabled());
+        return OffTargetEngine(idx, ep);
+      }());
+      std::vector<OffTargetHit> hits;
+      {
+        ScopedTimer t_score("cli.score.score_guides", timing_enabled());
+        hits = engine.score_guides(guides);
+      }
 
       std::ostream *out = &std::cout;
       std::ofstream outfile;
@@ -146,12 +195,15 @@ int main(int argc, char **argv) {
         outfile.open(opt.output_path);
         out = &outfile;
       }
-      *out << "guide\tchrom\tpos\tstrand\tmismatches\tscore\n";
-      for (const auto &h : hits) {
-        const auto &chroms = idx.chromosomes();
-        std::string chrom = (h.chrom_id < chroms.size()) ? chroms[h.chrom_id].name : std::to_string(h.chrom_id);
-        *out << h.guide_name << '\t' << chrom << '\t' << h.pos << '\t' << h.strand
-             << '\t' << static_cast<int>(h.mismatches) << '\t' << h.score << '\n';
+      {
+        ScopedTimer t_write("cli.score.write_output", timing_enabled());
+        *out << "guide\tchrom\tpos\tstrand\tmismatches\tscore\n";
+        for (const auto &h : hits) {
+          const auto &chroms = idx.chromosomes();
+          std::string chrom = (h.chrom_id < chroms.size()) ? chroms[h.chrom_id].name : std::to_string(h.chrom_id);
+          *out << h.guide_name << '\t' << chrom << '\t' << h.pos << '\t' << h.strand
+               << '\t' << static_cast<int>(h.mismatches) << '\t' << h.score << '\n';
+        }
       }
       return 0;
     } else {
