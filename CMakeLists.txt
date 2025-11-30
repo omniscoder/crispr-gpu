@@ -60,6 +60,8 @@ set(CRISPR_GPU_BASE_SOURCES
 if(CRISPR_GPU_ENABLE_CUDA)
   enable_language(CUDA)
   list(APPEND CRISPR_GPU_BASE_SOURCES src/kernels.cu)
+else()
+  add_definitions(-DCRISPR_GPU_CPU_ONLY)
 endif()
 
 add_library(crispr_gpu STATIC ${CRISPR_GPU_BASE_SOURCES})
