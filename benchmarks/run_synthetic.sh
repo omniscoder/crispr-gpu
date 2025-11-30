@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Synthetic benchmark: build 5 Mb genome index and score 50 random guides (K=4, Hamming)
+# Outputs wall-clock timings for index build, CPU score, and GPU score (if available).
+
+set -euo pipefail
+
+ROOT="$(mktemp -d /tmp/crisprgpu-bench-XXXXXX)"
+export ROOT
+GENOME_LEN="${GENOME_LEN:-5000000}"
+GUIDE_COUNT="${GUIDE_COUNT:-50}"
+GUIDE_LEN=20
+
+echo "Working dir: $ROOT"
+export PYTHONPATH="${PYTHONPATH:-}:$(pwd)/build"
+
+genome="$ROOT/genome.fa"
+guides="$ROOT/guides.tsv"
+index="$ROOT/genome.idx"
+hits_cpu="$ROOT/hits_cpu.tsv"
+hits_gpu="$ROOT/hits_gpu.tsv"
+
+python3 - <<PY
+import random, pathlib, os
+random.seed(0)
+root = pathlib.Path(os.environ.get("ROOT"))
+length = int(os.environ.get("GENOME_LEN", "5000000"))
+G = int(os.environ.get("GUIDE_COUNT", "50"))
+seq = ''.join(random.choice('ACGT') for _ in range(length))
+(root / "genome.fa").write_text(">chr1\n" + seq + "\n")
+with open(root / "guides.tsv", "w") as f:
+    for i in range(G):
+        g = ''.join(random.choice('ACGT') for _ in range(20))
+        f.write(f"g{i}\t{g}\tNGG\n")
+PY
+
+echo "Genome length: $GENOME_LEN bp"
+echo "Guides: $GUIDE_COUNT"
+
+log_build="$ROOT/log_build.txt"
+log_cpu="$ROOT/log_cpu.txt"
+log_gpu="$ROOT/log_gpu.txt"
+time_build_file="$ROOT/time_build.txt"
+time_cpu_file="$ROOT/time_cpu.txt"
+time_gpu_file="$ROOT/time_gpu.txt"
+
+time_build=$( /usr/bin/time -f "%e" -o "$time_build_file" ./build/crispr-gpu index --fasta "$genome" --pam NGG --guide-length $GUIDE_LEN --out "$index" >"$log_build" 2>&1 || true; cat "$time_build_file" )
+
+time_cpu=$( /usr/bin/time -f "%e" -o "$time_cpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides" --max-mm 4 --score-model hamming --backend cpu --output "$hits_cpu" >"$log_cpu" 2>&1 || true; cat "$time_cpu_file" )
+
+gpu_available=0
+python3 - <<'PY' >/dev/null 2>&1 || true
+import crispr_gpu as cg
+import sys
+sys.exit(0 if cg.cuda_available() else 1)
+PY
+if [[ $? -eq 0 ]]; then
+  gpu_available=1
+  time_gpu=$( /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides" --max-mm 4 --score-model hamming --backend gpu --output "$hits_gpu" >"$log_gpu" 2>&1 || true; cat "$time_gpu_file" )
+else
+  time_gpu="NA"
+fi
+
+echo
+echo "Results (seconds):"
+printf "  build_index : %s\n" "$time_build"
+printf "  score_cpu   : %s\n" "$time_cpu"
+printf "  score_gpu   : %s\n" "$time_gpu"
+echo
+echo "Artifacts in $ROOT"
+echo "  logs: $log_build $log_cpu $log_gpu"
