@@ -39,7 +39,12 @@ jobs:
           ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
           conda mambabuild conda --output-folder /tmp/conda-bld --output > pkgs.txt
-          while read -r pkg; do
+          pkgs=$(grep -E '\.(tar\.bz2|conda)$' pkgs.txt)
+          if [ -z "$pkgs" ]; then
+            echo "No packages found in pkgs.txt"
+            exit 1
+          fi
+          for pkg in $pkgs; do
             echo "Uploading $pkg"
             anaconda -t "$ANACONDA_TOKEN" upload --skip-existing "$pkg"
-          done < pkgs.txt
+          done
