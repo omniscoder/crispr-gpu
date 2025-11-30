@@ -63,9 +63,11 @@ Synthetic genome, NGG, guide length 20, K=4, Hamming, 50 random guides.
 
 | Backend | GPU warmup | Genome size | Time (s) |
 | --- | --- | --- | --- |
-| CPU | n/a | 5 Mb | ~0.2 |
-| GPU | cold (includes CUDA init) | 5 Mb | ~1.3 |
-| GPU | warm (CRISPR_GPU_WARMUP=1) | 5 Mb | ~0.5 |
+| CPU | n/a | 5 Mb | ~0.30 |
+| GPU | cold (includes CUDA init) | 5 Mb | ~1.48 |
+| GPU | warm (CRISPR_GPU_WARMUP=1) | 5 Mb | ~0.53 |
+| CPU | n/a | 50 Mb | ~2.80 |
+| GPU | warm | 50 Mb | ~1.60 |
 
 Run it yourself:
 ```bash

@@ -8,6 +8,7 @@
 #   GENOME_LEN / GUIDE_COUNT  (override lengths/count)
 #   CRISPR_GPU_WARMUP=1       (do one throwaway GPU score before timing)
 #   SKIP_GPU=1                (skip GPU section, useful on CPU-only CI)
+#   CI_CPU_SLO=seconds        (fail if CPU time exceeds this; default 1.0s on CI for small scale)
 
 set -euo pipefail
 
@@ -21,6 +22,7 @@ else
 fi
 GUIDE_COUNT="${GUIDE_COUNT:-50}"
 GUIDE_LEN=20
+export GENOME_LEN GUIDE_COUNT
 
 echo "Working dir: $ROOT"
 export PYTHONPATH="${PYTHONPATH:-}:$(pwd)/build"
@@ -84,6 +86,59 @@ echo "Results (seconds):"
 printf "  build_index : %s\n" "$time_build"
 printf "  score_cpu   : %s\n" "$time_cpu"
 printf "  score_gpu   : %s\n" "$time_gpu"
+
+# Parse counts
+site_count=$(grep -oE 'with ([0-9]+) sites' "$log_build" | awk '{print $2}')
+hits_cpu_count=$( (wc -l "$hits_cpu" 2>/dev/null || echo "0") | awk '{print ($1>0)?$1-1:0}')
+hits_gpu_count=$( (wc -l "$hits_gpu" 2>/dev/null || echo "0") | awk '{print ($1>0)?$1-1:0}')
+
+if [[ -n "$site_count" && "$site_count" -gt 0 ]]; then
+  guides="$GUIDE_COUNT"
+  candidates=$((site_count * guides))
+  cpu_eps=$(TIME_VAL="$time_cpu" CAND="$candidates" python3 - <<'PY'
+import os
+try:
+    t=float(os.environ["TIME_VAL"])
+    c=int(os.environ["CAND"])
+    print("{:.3f}".format(c/t))
+except Exception:
+    print("NA")
+PY
+)
+  gpu_eps=$(TIME_VAL="$time_gpu" CAND="$candidates" python3 - <<'PY'
+import os
+try:
+    t=float(os.environ["TIME_VAL"])
+    c=int(os.environ["CAND"])
+    print("{:.3f}".format(c/t))
+except Exception:
+    print("NA")
+PY
+)
+  echo
+  echo "Throughput:"
+  echo "  candidates: $candidates"
+  echo "  cpu candidates/sec: $cpu_eps"
+  echo "  gpu candidates/sec: $gpu_eps"
+  echo "  cpu hits: $hits_cpu_count"
+  echo "  gpu hits: $hits_gpu_count"
+fi
+
+# Optional CPU regression guard for CI (small scale only)
+if [[ "${CI:-}" != "" && "$BENSCALE" == "small" ]]; then
+  limit="${CI_CPU_SLO:-1.0}"
+  TIME_VAL="$time_cpu" LIMIT_VAL="$limit" python3 - <<'PY'
+import os, sys
+try:
+    t=float(os.environ["TIME_VAL"])
+    limit=float(os.environ["LIMIT_VAL"])
+    if t > limit:
+        print(f"CPU time {t:.3f}s exceeds limit {limit:.3f}s", file=sys.stderr)
+        sys.exit(1)
+except Exception:
+    sys.exit(0)
+PY
+fi
 echo
 echo "Artifacts in $ROOT"
 echo "  logs: $log_build $log_cpu $log_gpu"
