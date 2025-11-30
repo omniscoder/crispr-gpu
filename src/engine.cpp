@@ -366,4 +366,12 @@ void cuda_warmup() {
 #endif
 }
 
+void log_stat(const char *label, const BenchStat &s) {
+  std::fprintf(stderr, "[stat] %s: candidates=%llu time=%.6f cgct=%.3e\n",
+               label,
+               static_cast<unsigned long long>(s.candidates),
+               s.seconds,
+               s.cgct());
+}
+
 } // namespace crispr_gpu

@@ -20,7 +20,7 @@ public:
   OffTargetEngine(const GenomeIndex &index, EngineParams params = {});
 
   std::vector<OffTargetHit> score_guide(const Guide &guide) const;
-  std::vector<OffTargetHit> score_guides(const std::vector<Guide> &guides) const;
+std::vector<OffTargetHit> score_guides(const std::vector<Guide> &guides) const;
 
 private:
   const GenomeIndex &index_;
@@ -33,5 +33,8 @@ bool cuda_available();
 // Warm up CUDA context and allocate a tiny scratch buffer so later GPU calls skip init tax.
 // No-op on CPU-only builds.
 void cuda_warmup();
+
+// Logging helper for bench stats (candidates, time, cgct)
+void log_stat(const char *label, const BenchStat &s);
 
 } // namespace crispr_gpu

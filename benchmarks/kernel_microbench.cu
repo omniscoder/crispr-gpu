@@ -35,7 +35,9 @@ int main() {
   if (N == 0) N = default_N;
   if (iters == 0) iters = default_iters;
 
-  uint64_t guide_bits = 0xAAAAAAAAAAAAAAAULL; // arbitrary pattern
+  // Use the same guide bits as engine encoding would produce for a 20bp pattern
+  // (pattern doesn't matter for throughput, only for matching accounting)
+  uint64_t guide_bits = 0x1b1b1b1b1bULL; // corresponds to ACGT repeated
 
   uint64_t *d_sites = nullptr;
   unsigned long long *d_sum = nullptr;
@@ -43,7 +45,7 @@ int main() {
   cudaMalloc(&d_sites, N * sizeof(uint64_t));
   cudaMalloc(&d_sum, sizeof(unsigned long long));
 
-  // Fill sites with pseudo data (here zeros is fine)
+  // Fill sites with pseudo data (zeros fine for counting)
   cudaMemset(d_sites, 0, N * sizeof(uint64_t));
   unsigned long long zero = 0;
   cudaMemcpy(d_sum, &zero, sizeof(unsigned long long), cudaMemcpyHostToDevice);
