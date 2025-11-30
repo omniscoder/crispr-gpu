@@ -59,6 +59,7 @@ set(CRISPR_GPU_BASE_SOURCES
 
 if(CRISPR_GPU_ENABLE_CUDA)
   enable_language(CUDA)
+  find_package(CUDAToolkit REQUIRED)
   list(APPEND CRISPR_GPU_BASE_SOURCES src/kernels.cu)
 else()
   add_definitions(-DCRISPR_GPU_CPU_ONLY)
@@ -85,6 +86,13 @@ endif()
 if(CRISPR_GPU_BUILD_CLI)
   add_executable(crispr-gpu src/cli_main.cpp)
   target_link_libraries(crispr-gpu PRIVATE crispr_gpu)
+endif()
+
+# Kernel microbenchmark (developer aid)
+if(CRISPR_GPU_ENABLE_CUDA)
+  add_executable(kernel_microbench benchmarks/kernel_microbench.cu)
+  set_target_properties(kernel_microbench PROPERTIES CUDA_STANDARD 14 CUDA_STANDARD_REQUIRED ON)
+  target_link_libraries(kernel_microbench PRIVATE CUDA::cudart)
 endif()
 
 # Python bindings
