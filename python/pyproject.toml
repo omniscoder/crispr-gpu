@@ -15,3 +15,4 @@ requires-python = ">=3.8"
 minimum-version = "0.5"
 cmake.verbose = true
 wheel.py-api = "cp38"
+cmake.source-dir = ".."
