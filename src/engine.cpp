@@ -79,13 +79,14 @@ std::vector<OffTargetHit> run_cpu_engine(const GenomeIndex &index,
                                          const EngineParams &params) {
   ScopedTimer t_total("cpu.total", timing_enabled());
   const auto &meta = index.meta();
-  ScopedTimer t_encode("cpu.encode", timing_enabled());
+  ScopedTimer t_stage1("cpu.stage1", timing_enabled());
   EncodedGuide eg = encode_guide(guide, meta.guide_length);
-  (void)t_encode;
+  (void)t_stage1;
 
   std::vector<OffTargetHit> hits;
   hits.reserve(1024);
 
+  ScopedTimer t_stage2("cpu.stage2", timing_enabled());
   for (const auto &site : index.sites()) {
     uint8_t mm = hamming_distance_2bit(eg.bits, site.seq_bits, meta.guide_length);
     if (mm > params.max_mismatches) continue;
@@ -205,6 +206,24 @@ GpuContext &gpu_context() {
   return ctx;
 }
 
+void cuda_warmup_internal() {
+  GpuContext &ctx = gpu_context();
+  const uint64_t dummy_bits = 0;
+  // allocate minimal buffers once
+  ctx.ensure_capacity(1, 1);
+  SiteRecord dummy{};
+  dummy.seq_bits = dummy_bits;
+  dummy.chrom_id = 0;
+  dummy.pos = 0;
+  dummy.strand = 0;
+  std::vector<SiteRecord> host_dummy(1, dummy);
+  ctx.ensure_sites_uploaded(host_dummy);
+  check_cuda(cudaMemsetAsync(ctx.d_count, 0, sizeof(uint32_t), ctx.stream), "warmup memset");
+  detail::launch_off_target_kernel(ctx.d_sites, 1, dummy_bits, 0, 20,
+                                   ScoreParams{}, ctx.d_hits, ctx.d_count, ctx.stream);
+  check_cuda(cudaStreamSynchronize(ctx.stream), "warmup sync");
+}
+
 std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
                                          const Guide &guide,
                                          const EngineParams &params) {
@@ -213,6 +232,7 @@ std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
   uint32_t num_sites = static_cast<uint32_t>(sites.size());
   if (num_sites == 0) return {};
 
+  ScopedTimer t_stage1("gpu.stage1", timing_enabled());
   ScopedTimer t_encode("gpu.encode", timing_enabled());
   EncodedGuide eg = encode_guide(guide, index.meta().guide_length);
   (void)t_encode;
@@ -230,6 +250,8 @@ std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
     check_cuda(cudaMemsetAsync(ctx.d_count, 0, sizeof(uint32_t), ctx.stream), "cudaMemsetAsync count");
   }
 
+  // Stage 2 = kernel + copies
+  ScopedTimer t_stage2("gpu.stage2", timing_enabled());
   {
     ScopedTimer t_kernel("gpu.kernel", timing_enabled());
     detail::launch_off_target_kernel(ctx.d_sites, num_sites, eg.bits, params.max_mismatches,
@@ -331,6 +353,16 @@ bool cuda_available() {
   return dev_count > 0;
 #else
   return false;
+#endif
+}
+
+void cuda_warmup() {
+#ifdef CRISPR_GPU_ENABLE_CUDA
+  try {
+    cuda_available(); // triggers context creation
+    cuda_warmup_internal(); // call the internal helper
+  } catch (...) {
+  }
 #endif
 }
 

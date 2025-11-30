@@ -30,4 +30,8 @@ private:
 // True if this build has CUDA enabled and at least one device is present.
 bool cuda_available();
 
+// Warm up CUDA context and allocate a tiny scratch buffer so later GPU calls skip init tax.
+// No-op on CPU-only builds.
+void cuda_warmup();
+
 } // namespace crispr_gpu
