@@ -15,3 +15,6 @@ jobs:
         run: cmake --build build --config Release
       - name: Tests
         run: ctest --output-on-failure --test-dir build
+      - name: Synthetic benchmark (CPU only)
+        run: |
+          SKIP_GPU=1 CRISPR_GPU_WARMUP=0 BENCH_SCALE=small ./benchmarks/run_synthetic.sh

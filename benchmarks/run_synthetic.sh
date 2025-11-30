@@ -1,12 +1,24 @@
 #!/usr/bin/env bash
-# Synthetic benchmark: build 5 Mb genome index and score 50 random guides (K=4, Hamming)
+# Synthetic benchmark:
+# - Small: 5 Mb genome, 50 random guides, K=4, Hamming (default)
+# - Large: 50 Mb genome if BENCH_SCALE=large
 # Outputs wall-clock timings for index build, CPU score, and GPU score (if available).
+# Env knobs:
+#   BENCH_SCALE=small|large   (default small)
+#   GENOME_LEN / GUIDE_COUNT  (override lengths/count)
+#   CRISPR_GPU_WARMUP=1       (do one throwaway GPU score before timing)
+#   SKIP_GPU=1                (skip GPU section, useful on CPU-only CI)
 
 set -euo pipefail
 
 ROOT="$(mktemp -d /tmp/crisprgpu-bench-XXXXXX)"
 export ROOT
-GENOME_LEN="${GENOME_LEN:-5000000}"
+BENSCALE="${BENCH_SCALE:-small}"
+if [[ "$BENSCALE" == "large" ]]; then
+  GENOME_LEN="${GENOME_LEN:-50000000}"
+else
+  GENOME_LEN="${GENOME_LEN:-5000000}"
+fi
 GUIDE_COUNT="${GUIDE_COUNT:-50}"
 GUIDE_LEN=20
 
@@ -48,14 +60,21 @@ time_build=$( /usr/bin/time -f "%e" -o "$time_build_file" ./build/crispr-gpu ind
 time_cpu=$( /usr/bin/time -f "%e" -o "$time_cpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides" --max-mm 4 --score-model hamming --backend cpu --output "$hits_cpu" >"$log_cpu" 2>&1 || true; cat "$time_cpu_file" )
 
 gpu_available=0
-python3 - <<'PY' >/dev/null 2>&1 || true
+if [[ ${SKIP_GPU:-0} -eq 0 ]]; then
+  python3 - <<'PY' >/dev/null 2>&1 || true
 import crispr_gpu as cg
 import sys
 sys.exit(0 if cg.cuda_available() else 1)
 PY
-if [[ $? -eq 0 ]]; then
-  gpu_available=1
-  time_gpu=$( /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides" --max-mm 4 --score-model hamming --backend gpu --output "$hits_gpu" >"$log_gpu" 2>&1 || true; cat "$time_gpu_file" )
+  if [[ $? -eq 0 ]]; then
+    gpu_available=1
+    if [[ ${CRISPR_GPU_WARMUP:-0} -ne 0 ]]; then
+      ./build/crispr-gpu score --index "$index" --guides "$guides" --max-mm 4 --score-model hamming --backend gpu --output /dev/null >/dev/null 2>&1 || true
+    fi
+    time_gpu=$( /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides" --max-mm 4 --score-model hamming --backend gpu --output "$hits_gpu" >"$log_gpu" 2>&1 || true; cat "$time_gpu_file" )
+  else
+    time_gpu="NA"
+  fi
 else
   time_gpu="NA"
 fi

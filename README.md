@@ -58,6 +58,24 @@ pip install .
 - docs/cfd_tables.md
 - docs/benchmarks.md (skeleton)
 
+## Synthetic Benchmark (quick sanity)
+Synthetic genome, NGG, guide length 20, K=4, Hamming, 50 random guides.
+
+| Backend | GPU warmup | Genome size | Time (s) |
+| --- | --- | --- | --- |
+| CPU | n/a | 5 Mb | ~0.2 |
+| GPU | cold (includes CUDA init) | 5 Mb | ~1.3 |
+| GPU | warm (CRISPR_GPU_WARMUP=1) | 5 Mb | ~0.5 |
+
+Run it yourself:
+```bash
+cmake -B build -S . -DCRISPR_GPU_ENABLE_CUDA=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+./benchmarks/run_synthetic.sh              # CPU + GPU (if available)
+CRISPR_GPU_WARMUP=1 ./benchmarks/run_synthetic.sh   # warm GPU timing
+BENCH_SCALE=large ./benchmarks/run_synthetic.sh     # 50 Mb genome
+```
+
 ## Version
 0.1.0
 
