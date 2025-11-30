@@ -1,6 +1,11 @@
 {% set name = "crispr" %}
 {% set version = "0.1.0" %}
 
+# NOTE: CI currently ships a CPU-only build to avoid unsatisfiable CUDA pins
+# on hosted runners. GPU wheels/conda variants can be produced later by
+# enabling CRISPR_GPU_ENABLE_CUDA at configure time and adding a CUDA-aware
+# variant recipe.
+
 package:
   name: {{ name|lower }}
   version: {{ version }}
@@ -12,43 +17,21 @@ source:
 build:
   number: 0
 
-outputs:
-  - name: {{ name }}-cpu
-    script: SKBUILD_CONFIGURE_OPTIONS="-DCRISPR_GPU_ENABLE_CUDA=OFF" python -m pip install . --no-deps --ignore-installed -vv
-    requirements:
-      host:
-        - python >=3.9
-        - pip
-        - scikit-build-core
-        - cmake
-        - ninja
-      run:
-        - python >=3.9
-    about:
-      summary: CPU build of crispr (CUDA disabled)
-
-  - name: {{ name }}
-    script: SKBUILD_CONFIGURE_OPTIONS="-DCRISPR_GPU_ENABLE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=61" python -m pip install . --no-deps --ignore-installed -vv
-    requirements:
-      host:
-        - python >=3.9
-        - pip
-        - scikit-build-core
-        - cmake
-        - ninja
-        - cudatoolkit =12.4
-        - cuda-nvcc =12.4
-      run:
-        - python >=3.9
-        - cudatoolkit =12.4
-    about:
-      summary: CUDA-enabled build of crispr
+requirements:
+  host:
+    - python >=3.9
+    - pip
+    - scikit-build-core
+    - cmake
+    - ninja
+  run:
+    - python >=3.9
 
 about:
   home: https://github.com/omniscoder/crispr-gpu
   license: MIT
   license_file: LICENSE
-  summary: CUDA-accelerated CRISPR off-target search with MIT/CFD scoring
+  summary: CUDA-accelerated CRISPR off-target search with MIT/CFD scoring (CPU build)
 
 extra:
   recipe-maintainers:
