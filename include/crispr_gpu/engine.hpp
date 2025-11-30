@@ -27,4 +27,7 @@ private:
   EngineParams params_;
 };
 
+// True if this build has CUDA enabled and at least one device is present.
+bool cuda_available();
+
 } // namespace crispr_gpu

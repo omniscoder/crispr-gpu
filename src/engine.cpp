@@ -102,6 +102,82 @@ void check_cuda(cudaError_t err, const char *msg) {
   }
 }
 
+struct GpuContext {
+  SiteRecord *d_sites{nullptr};
+  detail::DeviceHit *d_hits{nullptr};
+  uint32_t *d_count{nullptr};
+  uint32_t *h_count{nullptr};              // pinned
+  detail::DeviceHit *h_hits{nullptr};      // pinned
+  size_t capacity_sites{0};
+  size_t capacity_hits{0};
+  const SiteRecord *host_sites_ptr{nullptr};
+  size_t host_sites_size{0};
+  cudaStream_t stream{nullptr};
+
+  ~GpuContext() {
+    if (d_sites) cudaFree(d_sites);
+    if (d_hits) cudaFree(d_hits);
+    if (d_count) cudaFree(d_count);
+    if (h_count) cudaFreeHost(h_count);
+    if (h_hits) cudaFreeHost(h_hits);
+    if (stream) cudaStreamDestroy(stream);
+  }
+
+  void ensure_stream() {
+    if (!stream) {
+      check_cuda(cudaStreamCreate(&stream), "cudaStreamCreate");
+    }
+  }
+
+  void ensure_capacity(size_t sites, size_t hits) {
+    ensure_stream();
+    if (sites > capacity_sites) {
+      if (d_sites) cudaFree(d_sites);
+      check_cuda(cudaMalloc(&d_sites, sites * sizeof(SiteRecord)), "cudaMalloc d_sites");
+      capacity_sites = sites;
+      // force re-upload on next call
+      host_sites_ptr = nullptr;
+      host_sites_size = 0;
+    }
+    if (hits > capacity_hits) {
+      if (d_hits) cudaFree(d_hits);
+      if (h_hits) cudaFreeHost(h_hits);
+      check_cuda(cudaMalloc(&d_hits, hits * sizeof(detail::DeviceHit)), "cudaMalloc d_hits");
+      check_cuda(cudaHostAlloc(reinterpret_cast<void **>(&h_hits),
+                               hits * sizeof(detail::DeviceHit), cudaHostAllocDefault),
+                 "cudaHostAlloc h_hits");
+      capacity_hits = hits;
+    }
+    if (!d_count) {
+      check_cuda(cudaMalloc(&d_count, sizeof(uint32_t)), "cudaMalloc d_count");
+    }
+    if (!h_count) {
+      check_cuda(cudaHostAlloc(reinterpret_cast<void **>(&h_count), sizeof(uint32_t),
+                               cudaHostAllocDefault),
+                 "cudaHostAlloc h_count");
+    }
+  }
+
+  void ensure_sites_uploaded(const std::vector<SiteRecord> &sites) {
+    if (host_sites_ptr == sites.data() && host_sites_size == sites.size()) {
+      return; // already resident
+    }
+    ensure_capacity(sites.size(), sites.size());
+    check_cuda(cudaMemcpyAsync(d_sites, sites.data(),
+                               sites.size() * sizeof(SiteRecord),
+                               cudaMemcpyHostToDevice, stream),
+               "cudaMemcpyAsync sites");
+    host_sites_ptr = sites.data();
+    host_sites_size = sites.size();
+    check_cuda(cudaStreamSynchronize(stream), "cudaStreamSync after sites upload");
+  }
+};
+
+GpuContext &gpu_context() {
+  static GpuContext ctx;
+  return ctx;
+}
+
 std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
                                          const Guide &guide,
                                          const EngineParams &params) {
@@ -111,43 +187,37 @@ std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
 
   EncodedGuide eg = encode_guide(guide, index.meta().guide_length);
 
-  SiteRecord *d_sites = nullptr;
-  detail::DeviceHit *d_hits = nullptr;
-  uint32_t *d_count = nullptr;
-  uint32_t max_hits = num_sites;
+  auto &ctx = gpu_context();
+  ctx.ensure_capacity(num_sites, num_sites);
+  ctx.ensure_sites_uploaded(sites);
 
-  check_cuda(cudaMalloc(&d_sites, num_sites * sizeof(SiteRecord)), "cudaMalloc d_sites");
-  check_cuda(cudaMalloc(&d_hits, max_hits * sizeof(detail::DeviceHit)), "cudaMalloc d_hits");
-  check_cuda(cudaMalloc(&d_count, sizeof(uint32_t)), "cudaMalloc d_count");
+  // zero count
+  check_cuda(cudaMemsetAsync(ctx.d_count, 0, sizeof(uint32_t), ctx.stream), "cudaMemsetAsync count");
 
-  check_cuda(cudaMemcpy(d_sites, sites.data(), num_sites * sizeof(SiteRecord), cudaMemcpyHostToDevice),
-             "cudaMemcpy sites");
-  uint32_t zero = 0;
-  check_cuda(cudaMemcpy(d_count, &zero, sizeof(uint32_t), cudaMemcpyHostToDevice), "cudaMemcpy count");
+  detail::launch_off_target_kernel(ctx.d_sites, num_sites, eg.bits, params.max_mismatches,
+                                   index.meta().guide_length, params.score_params,
+                                   ctx.d_hits, ctx.d_count, ctx.stream);
 
-  detail::launch_off_target_kernel(d_sites, num_sites, eg.bits, params.max_mismatches,
-                                   index.meta().guide_length, params.score_params, d_hits, d_count, 0);
-  check_cuda(cudaDeviceSynchronize(), "cudaDeviceSynchronize");
+  check_cuda(cudaMemcpyAsync(ctx.h_count, ctx.d_count, sizeof(uint32_t),
+                             cudaMemcpyDeviceToHost, ctx.stream),
+             "cudaMemcpyAsync count back");
+  check_cuda(cudaStreamSynchronize(ctx.stream), "cudaStreamSynchronize after kernel");
 
-  uint32_t host_count = 0;
-  check_cuda(cudaMemcpy(&host_count, d_count, sizeof(uint32_t), cudaMemcpyDeviceToHost),
-             "cudaMemcpy count back");
-  host_count = std::min(host_count, max_hits);
+  uint32_t host_count = *ctx.h_count;
+  host_count = std::min<uint32_t>(host_count, num_sites);
 
-  std::vector<detail::DeviceHit> device_hits(host_count);
   if (host_count > 0) {
-    check_cuda(cudaMemcpy(device_hits.data(), d_hits, host_count * sizeof(detail::DeviceHit),
-                          cudaMemcpyDeviceToHost),
-               "cudaMemcpy hits back");
+    check_cuda(cudaMemcpyAsync(ctx.h_hits, ctx.d_hits,
+                               host_count * sizeof(detail::DeviceHit),
+                               cudaMemcpyDeviceToHost, ctx.stream),
+               "cudaMemcpyAsync hits back");
+    check_cuda(cudaStreamSynchronize(ctx.stream), "cudaStreamSynchronize after hits");
   }
-
-  cudaFree(d_sites);
-  cudaFree(d_hits);
-  cudaFree(d_count);
 
   std::vector<OffTargetHit> out;
   out.reserve(host_count);
-  for (const auto &h : device_hits) {
+  for (uint32_t i = 0; i < host_count; ++i) {
+    const auto &h = ctx.h_hits[i];
     const auto &site = sites[h.site_index];
     OffTargetHit o;
     o.guide_name = guide.name;
@@ -207,6 +277,16 @@ std::vector<OffTargetHit> OffTargetEngine::score_guides(const std::vector<Guide>
     all.insert(all.end(), h.begin(), h.end());
   }
   return all;
+}
+
+bool cuda_available() {
+#ifdef CRISPR_GPU_ENABLE_CUDA
+  int dev_count = 0;
+  if (cudaGetDeviceCount(&dev_count) != cudaSuccess) return false;
+  return dev_count > 0;
+#else
+  return false;
+#endif
 }
 
 } // namespace crispr_gpu

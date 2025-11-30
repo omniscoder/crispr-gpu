@@ -64,6 +64,8 @@ PYBIND11_MODULE(crispr_gpu, m) {
       .def("score_guide", &OffTargetEngine::score_guide)
       .def("score_guides", &OffTargetEngine::score_guides);
 
+  m.def("cuda_available", &cuda_available, "Return True if CUDA backend is available at runtime");
+
   m.def("load_index", &GenomeIndex::load, "Load an index file");
   m.def("build_index", &GenomeIndex::build, "Build an index from FASTA",
         py::arg("fasta_path"), py::arg("params"));
