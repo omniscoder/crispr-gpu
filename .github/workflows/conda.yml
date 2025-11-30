@@ -23,7 +23,7 @@ jobs:
           use-mamba: true
       - name: Install conda-build
         shell: bash -l {0}
-        run: conda install -y conda-build anaconda-client
+        run: conda install -y -c conda-forge mamba conda-build anaconda-client
       - name: Build recipe
         shell: bash -l {0}
         run: mamba build conda --output-folder /tmp/conda-bld
