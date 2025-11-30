@@ -18,8 +18,8 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install build
-      - name: Build sdist+wheel (CPU-only to avoid CUDA dependency)
-        run: python -m build
+      - name: Build sdist only (CPU-only to avoid CUDA dependency)
+        run: python -m build --sdist
         env:
           SKBUILD_CONFIGURE_OPTIONS: "-DCRISPR_GPU_ENABLE_CUDA=OFF"
       - uses: actions/upload-artifact@v4
