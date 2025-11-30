@@ -75,6 +75,12 @@ struct OffTargetHit {
   float score{0.0f};
 };
 
+struct BenchStat {
+  std::uint64_t candidates{0};
+  double seconds{0.0};
+  double cgct() const { return seconds > 0.0 ? static_cast<double>(candidates) / seconds : 0.0; }
+};
+
 // Utility helpers
 uint8_t base_to_bits(char b);
 char bits_to_base(uint8_t bits);
