@@ -26,7 +26,7 @@ jobs:
         run: conda install -y -c conda-forge mamba conda-build anaconda-client
       - name: Build recipe
         shell: bash -l {0}
-        run: mamba build conda --output-folder /tmp/conda-bld
+        run: mamba build . --output-folder /tmp/conda-bld
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -38,7 +38,7 @@ jobs:
         env:
           ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
-          mamba build conda --output-folder /tmp/conda-bld --output > pkgs.txt
+          mamba build . --output-folder /tmp/conda-bld --output > pkgs.txt
           while read -r pkg; do
             echo "Uploading $pkg"
             anaconda -t "$ANACONDA_TOKEN" upload --skip-existing "$pkg"
