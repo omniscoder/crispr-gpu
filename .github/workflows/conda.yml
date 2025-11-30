@@ -19,13 +19,14 @@ jobs:
           activate-environment: build-env
           auto-update-conda: true
           python-version: 3.11
-          channels: conda-forge,defaults
+          channels: conda-forge,nvidia,defaults
+          miniforge-variant: Mambaforge
       - name: Install conda-build
         shell: bash -l {0}
         run: conda install -y conda-build anaconda-client
       - name: Build recipe
         shell: bash -l {0}
-        run: conda build conda --output-folder /tmp/conda-bld
+        run: mamba build conda --output-folder /tmp/conda-bld
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -37,7 +38,7 @@ jobs:
         env:
           ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
-          conda build conda --output-folder /tmp/conda-bld --output > pkgs.txt
+          mamba build conda --output-folder /tmp/conda-bld --output > pkgs.txt
           while read -r pkg; do
             echo "Uploading $pkg"
             anaconda -t "$ANACONDA_TOKEN" upload --skip-existing "$pkg"
