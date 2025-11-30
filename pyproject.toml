@@ -17,7 +17,6 @@ cmake.verbose = true
 cmake.source-dir = "."
 wheel.py-api = "cp39"
 wheel.packages = ["python/crispr_gpu"]
-cmake.define = { CRISPR_GPU_ENABLE_CUDA = "OFF" }
 
 [tool.scikit-build.sdist]
 include = [

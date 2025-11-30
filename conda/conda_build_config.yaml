@@ -1,0 +1,27 @@
+# Variant configuration for CPU and GPU builds
+
+python:
+  - 3.9
+  - 3.10
+  - 3.11
+  - 3.12
+
+# Logical switch: 0 = CPU, 1 = GPU
+cuda_enabled:
+  - 0
+  - 1
+
+# CUDA version only relevant when cuda_enabled = 1
+cuda_version:
+  - ""
+  - "12.4"
+
+# Passed through to scikit-build-core / CMake
+skbuild_configure_options:
+  - "-DCRISPR_GPU_ENABLE_CUDA=OFF"
+  - "-DCRISPR_GPU_ENABLE_CUDA=ON"
+
+zip_keys:
+  # Couple the CUDA knobs so we only emit the two valid tuples:
+  # (0, "", OFF) and (1, 12.4, ON)
+  - [cuda_enabled, cuda_version, skbuild_configure_options]

@@ -1,0 +1,19 @@
+# CPU-only override for CI: forces cuda_enabled=0
+
+python:
+  - 3.9
+  - 3.10
+  - 3.11
+  - 3.12
+
+cuda_enabled:
+  - 0
+
+cuda_version:
+  - ""
+
+skbuild_configure_options:
+  - "-DCRISPR_GPU_ENABLE_CUDA=OFF"
+
+zip_keys:
+  - [cuda_enabled, cuda_version, skbuild_configure_options]
