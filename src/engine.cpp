@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include <algorithm>
 #include <numeric>
+#include <chrono>
+#include <cstdio>
 
 #ifdef CRISPR_GPU_ENABLE_CUDA
 #include <cuda_runtime.h>
@@ -27,6 +29,28 @@ void launch_off_target_kernel(const SiteRecord *d_sites,
 #endif
 
 namespace {
+
+bool timing_enabled() {
+  static int cached = -1;
+  if (cached == -1) {
+    const char *env = std::getenv("CRISPR_GPU_TIMING");
+    cached = (env && env[0] != '0') ? 1 : 0;
+  }
+  return cached == 1;
+}
+
+struct ScopedTimer {
+  const char *name;
+  bool active;
+  std::chrono::steady_clock::time_point start;
+  ScopedTimer(const char *n, bool on) : name(n), active(on), start(std::chrono::steady_clock::now()) {}
+  ~ScopedTimer() {
+    if (!active) return;
+    auto end = std::chrono::steady_clock::now();
+    double ms = std::chrono::duration<double, std::milli>(end - start).count();
+    std::fprintf(stderr, "[timing] %s: %.3f ms\n", name, ms);
+  }
+};
 
 EncodedGuide encode_guide(const Guide &guide, uint8_t expected_length) {
   if (guide.sequence.size() != expected_length) {
@@ -53,8 +77,11 @@ std::vector<uint8_t> mismatch_positions(uint64_t a, uint64_t b, uint8_t length) 
 std::vector<OffTargetHit> run_cpu_engine(const GenomeIndex &index,
                                          const Guide &guide,
                                          const EngineParams &params) {
+  ScopedTimer t_total("cpu.total", timing_enabled());
   const auto &meta = index.meta();
+  ScopedTimer t_encode("cpu.encode", timing_enabled());
   EncodedGuide eg = encode_guide(guide, meta.guide_length);
+  (void)t_encode;
 
   std::vector<OffTargetHit> hits;
   hits.reserve(1024);
@@ -181,32 +208,48 @@ GpuContext &gpu_context() {
 std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
                                          const Guide &guide,
                                          const EngineParams &params) {
+  ScopedTimer t_total("gpu.total", timing_enabled());
   const auto &sites = index.sites();
   uint32_t num_sites = static_cast<uint32_t>(sites.size());
   if (num_sites == 0) return {};
 
+  ScopedTimer t_encode("gpu.encode", timing_enabled());
   EncodedGuide eg = encode_guide(guide, index.meta().guide_length);
+  (void)t_encode;
 
   auto &ctx = gpu_context();
   ctx.ensure_capacity(num_sites, num_sites);
-  ctx.ensure_sites_uploaded(sites);
+  {
+    ScopedTimer t_upload("gpu.upload_sites", timing_enabled());
+    ctx.ensure_sites_uploaded(sites);
+  }
 
   // zero count
-  check_cuda(cudaMemsetAsync(ctx.d_count, 0, sizeof(uint32_t), ctx.stream), "cudaMemsetAsync count");
+  {
+    ScopedTimer t_zero("gpu.zero", timing_enabled());
+    check_cuda(cudaMemsetAsync(ctx.d_count, 0, sizeof(uint32_t), ctx.stream), "cudaMemsetAsync count");
+  }
 
-  detail::launch_off_target_kernel(ctx.d_sites, num_sites, eg.bits, params.max_mismatches,
-                                   index.meta().guide_length, params.score_params,
-                                   ctx.d_hits, ctx.d_count, ctx.stream);
+  {
+    ScopedTimer t_kernel("gpu.kernel", timing_enabled());
+    detail::launch_off_target_kernel(ctx.d_sites, num_sites, eg.bits, params.max_mismatches,
+                                     index.meta().guide_length, params.score_params,
+                                     ctx.d_hits, ctx.d_count, ctx.stream);
+  }
 
-  check_cuda(cudaMemcpyAsync(ctx.h_count, ctx.d_count, sizeof(uint32_t),
-                             cudaMemcpyDeviceToHost, ctx.stream),
-             "cudaMemcpyAsync count back");
+  {
+    ScopedTimer t_count("gpu.copy_count", timing_enabled());
+    check_cuda(cudaMemcpyAsync(ctx.h_count, ctx.d_count, sizeof(uint32_t),
+                               cudaMemcpyDeviceToHost, ctx.stream),
+               "cudaMemcpyAsync count back");
+  }
   check_cuda(cudaStreamSynchronize(ctx.stream), "cudaStreamSynchronize after kernel");
 
   uint32_t host_count = *ctx.h_count;
   host_count = std::min<uint32_t>(host_count, num_sites);
 
   if (host_count > 0) {
+    ScopedTimer t_hits("gpu.copy_hits", timing_enabled());
     check_cuda(cudaMemcpyAsync(ctx.h_hits, ctx.d_hits,
                                host_count * sizeof(detail::DeviceHit),
                                cudaMemcpyDeviceToHost, ctx.stream),
