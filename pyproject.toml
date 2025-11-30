@@ -1,0 +1,33 @@
+[build-system]
+requires = ["scikit-build-core>=0.5.1", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "crispr"
+version = "0.1.0"
+description = "CUDA-accelerated CRISPR off-target search"
+authors = [{ name = "crispr authors" }]
+license = { text = "MIT" }
+readme = "python/README_PYPI.md"
+requires-python = ">=3.9"
+
+[tool.scikit-build]
+minimum-version = "0.5"
+cmake.verbose = true
+cmake.source-dir = "."
+wheel.py-api = "cp39"
+wheel.packages = ["python/crispr_gpu"]
+
+[tool.scikit-build.sdist]
+include = [
+  "CMakeLists.txt",
+  "src/**",
+  "include/**",
+  "python/**",
+  "data/**",
+  "cmake/**",
+  "docs/**",
+  "README.md",
+  "LICENSE",
+  "CHANGELOG.md",
+]

@@ -19,7 +19,6 @@ jobs:
           python-version: "3.11"
       - run: pip install build
       - name: Build sdist+wheel (CPU-only to avoid CUDA dependency)
-        working-directory: python
         run: python -m build
         env:
           SKBUILD_CONFIGURE_OPTIONS: "-DCRISPR_GPU_ENABLE_CUDA=OFF"
