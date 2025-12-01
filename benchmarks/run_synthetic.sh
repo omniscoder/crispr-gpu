@@ -7,7 +7,7 @@
 #   BENCH_SCALE=small|large   (default small)
 #   GENOME_LEN / GUIDE_COUNT  (override lengths/count)
 #   GUIDE_SWEEP=50,500,5000   (comma-separated counts; overrides GUIDE_COUNT loop)
-#   CRISPR_GPU_WARMUP=1       (do one throwaway GPU score before timing)
+#   CRISPR_GPU_WARMUP=1       (do one warm GPU pass after cold measurement)
 #   SKIP_GPU=1                (skip GPU section, useful on CPU-only CI)
 #   CI_CPU_SLO=seconds        (fail if CPU time exceeds this; default 1.0s on CI for small scale)
 
@@ -32,6 +32,7 @@ MAX_GUIDES="$GUIDE_COUNT"
 for g in "${GUIDE_LIST[@]}"; do
   if [[ "$g" -gt "$MAX_GUIDES" ]]; then MAX_GUIDES="$g"; fi
 done
+export MAX_GUIDES
 GUIDE_LEN=20
 export GENOME_LEN GUIDE_COUNT
 
@@ -77,11 +78,11 @@ PY
 fi
 
 echo
-echo "Results (seconds):"
+echo "Results (seconds and CGCT):"
 printf "  build_index : %s\n" "$time_build"
 echo
 
-first_cpu_time=""
+cold_gpu_logged=0
 
 for guides_cur in "${GUIDE_LIST[@]}"; do
   guides_file="$ROOT/guides_${guides_cur}.tsv"
@@ -95,14 +96,17 @@ for guides_cur in "${GUIDE_LIST[@]}"; do
   hits_gpu="$ROOT/hits_gpu_${guides_cur}.tsv"
 
   time_cpu=$( /usr/bin/time -f "%e" -o "$time_cpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides_file" --max-mm 4 --score-model hamming --backend cpu --output "$hits_cpu" >"$log_cpu" 2>&1 || true; cat "$time_cpu_file" )
-  [[ -z "$first_cpu_time" ]] && first_cpu_time="$time_cpu"
+  time_gpu_cold="NA"
+  time_gpu_warm="NA"
 
-  time_gpu="NA"
   if [[ $gpu_available -eq 1 ]]; then
+    # cold run
+    time_gpu_cold=$( /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides_file" --max-mm 4 --score-model hamming --backend gpu --output "$hits_gpu" >"$log_gpu" 2>&1 || true; cat "$time_gpu_file" )
+    # warm run (optional)
     if [[ ${CRISPR_GPU_WARMUP:-0} -ne 0 ]]; then
-      ./build/crispr-gpu score --index "$index" --guides "$guides_file" --max-mm 4 --score-model hamming --backend gpu --output /dev/null >/dev/null 2>&1 || true
+      ./build/crispr-gpu warmup >/dev/null 2>&1 || true
+      time_gpu_warm=$( /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides_file" --max-mm 4 --score-model hamming --backend gpu --output "$hits_gpu" >"$log_gpu" 2>&1 || true; cat "$time_gpu_file" )
     fi
-    time_gpu=$( /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides_file" --max-mm 4 --score-model hamming --backend gpu --output "$hits_gpu" >"$log_gpu" 2>&1 || true; cat "$time_gpu_file" )
   fi
 
   # stats
@@ -120,9 +124,23 @@ except Exception:
     print("NA")
 PY
 )
-  gpu_eps="NA"
-  if [[ "$time_gpu" != "NA" ]]; then
-    gpu_eps=$(TIME_VAL="$time_gpu" CAND="$candidates" python3 - <<'PY'
+  gpu_eps_cold="NA"
+  if [[ "$time_gpu_cold" != "NA" ]]; then
+    gpu_eps_cold=$(TIME_VAL="$time_gpu_cold" CAND="$candidates" python3 - <<'PY'
+import os
+try:
+    t=float(os.environ["TIME_VAL"])
+    c=int(os.environ["CAND"])
+    print("{:.3f}".format(c/t))
+except Exception:
+    print("NA")
+PY
+)
+  fi
+
+  gpu_eps_warm="NA"
+  if [[ "$time_gpu_warm" != "NA" ]]; then
+    gpu_eps_warm=$(TIME_VAL="$time_gpu_warm" CAND="$candidates" python3 - <<'PY'
 import os
 try:
     t=float(os.environ["TIME_VAL"])
@@ -135,15 +153,16 @@ PY
   fi
 
   echo "Guides: $guides_cur"
-  echo "  cpu_time: $time_cpu s  cpu_candidates/sec: $cpu_eps  hits: $hits_cpu_count"
-  echo "  gpu_time: $time_gpu s  gpu_candidates/sec: $gpu_eps  hits: $hits_gpu_count"
+  echo "  cpu_time: $time_cpu s  cpu_cgct: $cpu_eps  hits: $hits_cpu_count"
+  echo "  gpu_cold_time: $time_gpu_cold s  gpu_cold_cgct: $gpu_eps_cold  hits: $hits_gpu_count"
+  echo "  gpu_warm_time: $time_gpu_warm s  gpu_warm_cgct: $gpu_eps_warm"
   echo
 done
 
 # Optional CPU regression guard for CI (small scale only, first CPU run)
-if [[ "${CI:-}" != "" && "$BENSCALE" == "small" && -n "$first_cpu_time" ]]; then
+if [[ "${CI:-}" != "" && "$BENSCALE" == "small" ]]; then
   limit="${CI_CPU_SLO:-1.0}"
-  TIME_VAL="$first_cpu_time" LIMIT_VAL="$limit" python3 - <<'PY'
+  TIME_VAL="$time_cpu" LIMIT_VAL="$limit" python3 - <<'PY'
 import os, sys
 try:
     t=float(os.environ["TIME_VAL"])

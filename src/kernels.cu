@@ -59,14 +59,14 @@ __device__ inline float score_hit_device(const uint8_t *mm_positions, uint8_t mm
   return 0.0f;
 }
 
-__global__ void off_target_kernel(const SiteRecord *sites,
+__global__ void off_target_kernel(const SiteRecord *__restrict__ sites,
                                   uint32_t num_sites,
                                   uint64_t guide_bits,
                                   uint8_t max_mm,
                                   uint8_t guide_length,
                                   ScoreParams score_params,
-                                  DeviceHit *out_hits,
-                                  uint32_t *out_count) {
+                                  DeviceHit *__restrict__ out_hits,
+                                  uint32_t *__restrict__ out_count) {
   uint32_t tid = blockIdx.x * blockDim.x + threadIdx.x;
   uint32_t stride = blockDim.x * gridDim.x;
 
@@ -75,18 +75,22 @@ __global__ void off_target_kernel(const SiteRecord *sites,
     uint8_t mm = mismatch_count_2bit(guide_bits, site.seq_bits);
     if (mm > max_mm) continue;
 
-    uint8_t posbuf[32];
-    uint8_t mcount = 0;
-    uint64_t a = guide_bits;
-    uint64_t b = site.seq_bits;
-    for (uint8_t p = 0; p < guide_length; ++p) {
-      uint8_t shift = static_cast<uint8_t>(2 * (guide_length - 1 - p));
-      uint8_t aa = static_cast<uint8_t>((a >> shift) & 0b11);
-      uint8_t bb = static_cast<uint8_t>((b >> shift) & 0b11);
-      if (aa != bb) posbuf[mcount++] = p;
+    float score;
+    if (score_params.model == ScoreModel::Hamming) {
+      score = score_hamming(mm);
+    } else {
+      uint8_t posbuf[32];
+      uint8_t mcount = 0;
+      uint64_t a = guide_bits;
+      uint64_t b = site.seq_bits;
+      for (uint8_t p = 0; p < guide_length; ++p) {
+        uint8_t shift = static_cast<uint8_t>(2 * (guide_length - 1 - p));
+        uint8_t aa = static_cast<uint8_t>((a >> shift) & 0b11);
+        uint8_t bb = static_cast<uint8_t>((b >> shift) & 0b11);
+        if (aa != bb) posbuf[mcount++] = p;
+      }
+      score = score_hit_device(posbuf, mcount, score_params);
     }
-
-    float score = score_hit_device(posbuf, mcount, score_params);
     uint32_t idx = atomicAdd(out_count, 1u);
     out_hits[idx].site_index = i;
     out_hits[idx].mismatches = mm;

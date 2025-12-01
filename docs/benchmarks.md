@@ -11,19 +11,32 @@ Build: Release, CUDA on, warm GPU where noted.
 ## Synthetic genome (5 Mb, 624,487 sites), 50 guides
 | Backend | Warmup | Time (s) | CGCT (candidates/s) | Hits |
 | --- | --- | --- | --- | --- |
-| CPU | n/a | 0.30 | ~1.04e8 | 8 |
-| GPU | cold | 1.48 | ~2.11e7 | 8 |
-| GPU | warm | 0.53 | ~5.9e7 | 8 |
+| CPU | n/a | 0.26 | 1.20e8 | 8 |
+| GPU | cold | 0.86 | 3.63e7 | 8 |
+| GPU | warm | 0.53 | 5.89e7 | 8 |
 
-## Synthetic genome (50 Mb), 50 guides
+## Synthetic genome (50 Mb, 6,246,000 sites), 500 guides
 | Backend | Warmup | Time (s) | CGCT (candidates/s) | Hits |
 | --- | --- | --- | --- | --- |
-| CPU | n/a | 2.80 | ~1.12e8 | 114 |
-| GPU | warm | 1.60 | ~1.95e8 | 114 |
+| CPU | n/a | 21.32 | 1.46e8 | 1281 |
+| GPU | cold | 2.71 | 1.15e9 | 1281 |
+| GPU | warm | 2.15 | 1.45e9 | 1281 |
+
+### Guide sweep (50 Mb, warm GPU)
+Candidate count scales as 6,246,000 sites × guides.
+
+| Guides | gpu.stage1 (s) | gpu.stage2 (s) | gpu.guides (s) | gpu.guides CGCT |
+| --- | --- | --- | --- | --- |
+| 1   | ~0.0001 | ~0.58 | 1.35 | 4.63e6 |
+| 10  | ~0.0001 | ~0.58 | 1.44 | 4.34e7 |
+| 50  | ~0.0001 | ~0.58 | 1.40 | 2.23e8 |
+| 500 | ~0.0001 | ~0.58 | 2.15 | 1.45e9 |
 
 Notes:
 - Warm GPU runs use `CRISPR_GPU_WARMUP=1` to pay CUDA context cost before timing.
 - Candidate count = (#sites) × (#guides); hits counted from output rows (header excluded).
+- Warm GPU 500-guide runs show ~±10% variance (1.29e9–1.55e9 cand/s) across repeated runs on the same GTX 1060; numbers above use a representative run.
+- Persistent GPU state + batch scoring improved the 50 Mb / 500 guide warm CGCT from ~1.20e9 (v0.10-bench) to ~1.45e9 (~22% uplift) without kernel changes; this is the brute-force Hamming baseline for future FM-index and DPX work.
 
 ## How to reproduce
 ```bash
@@ -47,6 +60,8 @@ GUIDE_SWEEP=50,500 ./benchmarks/run_synthetic.sh
 Standalone device benchmark for the Hamming kernel (no host/index overhead):
 ```bash
 cmake --build build -j --target kernel_microbench
-MB_N=10000000 MB_ITERS=50 ./build/kernel_microbench
+./build/kernel_microbench
 ```
-Outputs `kernel_candidates_per_sec` for direct GPU throughput inspection.
+Configuration: grid 24,399, block 256, candidates 6.246e6, max_mm=4.
+Latest result (GTX 1060): 2.01e9 candidates/s in 0.003107 s (single-guide scan of the 50 Mb index size).
+Outputs `cgct_candidates_per_sec` for direct GPU throughput inspection.

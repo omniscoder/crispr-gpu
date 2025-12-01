@@ -48,11 +48,12 @@ struct EncodedGuide {
   std::string name;
 };
 
-struct SiteRecord {
+struct alignas(16) SiteRecord {
   uint64_t seq_bits{0};
   uint32_t chrom_id{0};
   uint32_t pos{0};
   uint8_t strand{0}; // 0 = '+', 1 = '-'
+  uint8_t pad[3]{0, 0, 0};
 };
 
 struct ChromInfo {

@@ -64,6 +64,7 @@ static void print_usage() {
   std::cerr << "  crispr-gpu index --fasta hg38.fa --pam NGG --guide-length 20 --out hg38.idx\n";
   std::cerr << "  crispr-gpu score --index hg38.idx --guides guides.tsv --max-mm 4 --score-model hamming --backend cpu|gpu --output hits.tsv\n";
   std::cerr << "  crispr-gpu score --cfd-table cfd.json  # override CFD weights\n";
+  std::cerr << "  crispr-gpu warmup  # warm CUDA context (no-op if CUDA disabled)\n";
   std::cerr << "  crispr-gpu --version\n";
 }
 
@@ -113,6 +114,15 @@ int main(int argc, char **argv) {
   try {
     if (sub == "--version" || sub == "-V") {
       std::cout << CRISPR_GPU_VERSION << "\n";
+      return 0;
+    }
+    if (sub == "warmup") {
+#ifdef CRISPR_GPU_ENABLE_CUDA
+      cuda_warmup();
+      std::cerr << "CUDA warmup done.\n";
+#else
+      std::cerr << "CUDA not enabled; warmup is a no-op.\n";
+#endif
       return 0;
     }
     if (sub == "index") {
@@ -179,10 +189,7 @@ int main(int argc, char **argv) {
         ScopedTimer t_cfd("cli.score.load_cfd", timing_enabled());
         load_cfd_tables(opt.cfd_table);
       }
-      OffTargetEngine engine([&]() {
-        ScopedTimer t_engine("cli.score.engine_init", timing_enabled());
-        return OffTargetEngine(idx, ep);
-      }());
+      OffTargetEngine engine(idx, ep);
       std::vector<OffTargetHit> hits;
       {
         ScopedTimer t_score("cli.score.score_guides", timing_enabled());

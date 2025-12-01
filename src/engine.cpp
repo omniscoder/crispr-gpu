@@ -77,16 +77,16 @@ std::vector<uint8_t> mismatch_positions(uint64_t a, uint64_t b, uint8_t length) 
 std::vector<OffTargetHit> run_cpu_engine(const GenomeIndex &index,
                                          const Guide &guide,
                                          const EngineParams &params) {
-  ScopedTimer t_total("cpu.total", timing_enabled());
+  auto wall_total_start = std::chrono::steady_clock::now();
   const auto &meta = index.meta();
-  ScopedTimer t_stage1("cpu.stage1", timing_enabled());
+  auto t1_start = std::chrono::steady_clock::now();
   EncodedGuide eg = encode_guide(guide, meta.guide_length);
-  (void)t_stage1;
+  auto t1_end = std::chrono::steady_clock::now();
 
   std::vector<OffTargetHit> hits;
   hits.reserve(1024);
 
-  ScopedTimer t_stage2("cpu.stage2", timing_enabled());
+  auto t2_start = std::chrono::steady_clock::now();
   for (const auto &site : index.sites()) {
     uint8_t mm = hamming_distance_2bit(eg.bits, site.seq_bits, meta.guide_length);
     if (mm > params.max_mismatches) continue;
@@ -118,11 +118,24 @@ std::vector<OffTargetHit> run_cpu_engine(const GenomeIndex &index,
     hit.score = score;
     hits.push_back(hit);
   }
+  auto t2_end = std::chrono::steady_clock::now();
+
+  double s1 = std::chrono::duration<double>(t1_end - t1_start).count();
+  double s2 = std::chrono::duration<double>(t2_end - t2_start).count();
+  uint64_t candidates = static_cast<uint64_t>(index.sites().size());
+  if (timing_enabled()) {
+    log_stat("cpu.stage1", BenchStat{candidates, s1});
+    log_stat("cpu.stage2", BenchStat{candidates, s2});
+    double total = std::chrono::duration<double>(t2_end - wall_total_start).count();
+    log_stat("cpu.total", BenchStat{candidates, total});
+  }
 
   return hits;
 }
 
 #ifdef CRISPR_GPU_ENABLE_CUDA
+
+} // namespace
 
 void check_cuda(cudaError_t err, const char *msg) {
   if (err != cudaSuccess) {
@@ -130,12 +143,14 @@ void check_cuda(cudaError_t err, const char *msg) {
   }
 }
 
+namespace detail {
+
 struct GpuContext {
   SiteRecord *d_sites{nullptr};
-  detail::DeviceHit *d_hits{nullptr};
+  DeviceHit *d_hits{nullptr};
   uint32_t *d_count{nullptr};
   uint32_t *h_count{nullptr};              // pinned
-  detail::DeviceHit *h_hits{nullptr};      // pinned
+  DeviceHit *h_hits{nullptr};      // pinned
   size_t capacity_sites{0};
   size_t capacity_hits{0};
   const SiteRecord *host_sites_ptr{nullptr};
@@ -170,9 +185,9 @@ struct GpuContext {
     if (hits > capacity_hits) {
       if (d_hits) cudaFree(d_hits);
       if (h_hits) cudaFreeHost(h_hits);
-      check_cuda(cudaMalloc(&d_hits, hits * sizeof(detail::DeviceHit)), "cudaMalloc d_hits");
+      check_cuda(cudaMalloc(&d_hits, hits * sizeof(DeviceHit)), "cudaMalloc d_hits");
       check_cuda(cudaHostAlloc(reinterpret_cast<void **>(&h_hits),
-                               hits * sizeof(detail::DeviceHit), cudaHostAllocDefault),
+                               hits * sizeof(DeviceHit), cudaHostAllocDefault),
                  "cudaHostAlloc h_hits");
       capacity_hits = hits;
     }
@@ -201,13 +216,20 @@ struct GpuContext {
   }
 };
 
-GpuContext &gpu_context() {
-  static GpuContext ctx;
-  return ctx;
-}
+struct EngineGpuState {
+  detail::GpuContext ctx;
+  bool sites_ready{false};
+};
+
+} // namespace detail
+
+namespace {
+
+using detail::EngineGpuState;
+using detail::GpuContext;
 
 void cuda_warmup_internal() {
-  GpuContext &ctx = gpu_context();
+  static detail::GpuContext ctx; // isolated warmup context
   const uint64_t dummy_bits = 0;
   // allocate minimal buffers once
   ctx.ensure_capacity(1, 1);
@@ -226,22 +248,124 @@ void cuda_warmup_internal() {
 
 std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
                                          const Guide &guide,
-                                         const EngineParams &params) {
-  ScopedTimer t_total("gpu.total", timing_enabled());
+                                         const EngineParams &params,
+                                         EngineGpuState *state);
+
+std::vector<OffTargetHit> run_gpu_engine_batch(const GenomeIndex &index,
+                                               const std::vector<Guide> &guides,
+                                               const EngineParams &params,
+                                               EngineGpuState *state) {
+  if (guides.empty()) return {};
+
   const auto &sites = index.sites();
   uint32_t num_sites = static_cast<uint32_t>(sites.size());
   if (num_sites == 0) return {};
 
-  ScopedTimer t_stage1("gpu.stage1", timing_enabled());
-  ScopedTimer t_encode("gpu.encode", timing_enabled());
-  EncodedGuide eg = encode_guide(guide, index.meta().guide_length);
-  (void)t_encode;
-
-  auto &ctx = gpu_context();
+  static detail::GpuContext fallback;
+  detail::GpuContext &ctx = state ? state->ctx : fallback;
   ctx.ensure_capacity(num_sites, num_sites);
-  {
+  if (!state || !state->sites_ready) {
     ScopedTimer t_upload("gpu.upload_sites", timing_enabled());
     ctx.ensure_sites_uploaded(sites);
+    if (state) state->sites_ready = true;
+  }
+
+  auto wall_total_start = std::chrono::steady_clock::now();
+  auto t1_start = std::chrono::steady_clock::now();
+  std::vector<EncodedGuide> encoded;
+  encoded.reserve(guides.size());
+  for (const auto &g : guides) {
+    encoded.push_back(encode_guide(g, index.meta().guide_length));
+  }
+  auto t1_end = std::chrono::steady_clock::now();
+
+  double stage2_accum = 0.0;
+
+  std::vector<OffTargetHit> all_hits;
+  for (size_t gi = 0; gi < guides.size(); ++gi) {
+    // zero count per guide
+    {
+      ScopedTimer t_zero("gpu.zero", timing_enabled());
+      check_cuda(cudaMemsetAsync(ctx.d_count, 0, sizeof(uint32_t), ctx.stream), "cudaMemsetAsync count");
+    }
+
+    auto t2_start = std::chrono::steady_clock::now();
+    {
+      ScopedTimer t_kernel("gpu.kernel", timing_enabled());
+      detail::launch_off_target_kernel(ctx.d_sites, num_sites, encoded[gi].bits, params.max_mismatches,
+                                       index.meta().guide_length, params.score_params,
+                                       ctx.d_hits, ctx.d_count, ctx.stream);
+    }
+
+    {
+      ScopedTimer t_count("gpu.copy_count", timing_enabled());
+      check_cuda(cudaMemcpyAsync(ctx.h_count, ctx.d_count, sizeof(uint32_t),
+                                 cudaMemcpyDeviceToHost, ctx.stream),
+                 "cudaMemcpyAsync count back");
+    }
+    check_cuda(cudaStreamSynchronize(ctx.stream), "cudaStreamSynchronize after kernel");
+
+    uint32_t host_count = *ctx.h_count;
+    host_count = std::min<uint32_t>(host_count, num_sites);
+
+    if (host_count > 0) {
+      ScopedTimer t_hits("gpu.copy_hits", timing_enabled());
+      check_cuda(cudaMemcpyAsync(ctx.h_hits, ctx.d_hits,
+                                 host_count * sizeof(detail::DeviceHit),
+                                 cudaMemcpyDeviceToHost, ctx.stream),
+                 "cudaMemcpyAsync hits back");
+      check_cuda(cudaStreamSynchronize(ctx.stream), "cudaStreamSynchronize after hits");
+    }
+    auto t2_end = std::chrono::steady_clock::now();
+    stage2_accum += std::chrono::duration<double>(t2_end - t2_start).count();
+
+    all_hits.reserve(all_hits.size() + host_count);
+    for (uint32_t i = 0; i < host_count; ++i) {
+      const auto &h = ctx.h_hits[i];
+      const auto &site = sites[h.site_index];
+      OffTargetHit o;
+      o.guide_name = guides[gi].name;
+      o.chrom_id = site.chrom_id;
+      o.pos = site.pos;
+      o.strand = site.strand == 0 ? '+' : '-';
+      o.mismatches = h.mismatches;
+      o.score = h.score;
+      all_hits.push_back(o);
+    }
+  }
+
+  if (timing_enabled()) {
+    double s1 = std::chrono::duration<double>(t1_end - t1_start).count();
+    double s2 = stage2_accum;
+    uint64_t candidates = static_cast<uint64_t>(sites.size()) * static_cast<uint64_t>(guides.size());
+    double total = std::chrono::duration<double>(std::chrono::steady_clock::now() - wall_total_start).count();
+    log_stat("gpu.stage1", BenchStat{candidates, s1});
+    log_stat("gpu.stage2", BenchStat{candidates, s2});
+    log_stat("gpu.total", BenchStat{candidates, total});
+  }
+
+  return all_hits;
+}
+std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
+                                         const Guide &guide,
+                                         const EngineParams &params,
+                                         EngineGpuState *state) {
+  auto wall_total_start = std::chrono::steady_clock::now();
+  const auto &sites = index.sites();
+  uint32_t num_sites = static_cast<uint32_t>(sites.size());
+  if (num_sites == 0) return {};
+
+  auto t1_start = std::chrono::steady_clock::now();
+  EncodedGuide eg = encode_guide(guide, index.meta().guide_length);
+  auto t1_end = std::chrono::steady_clock::now();
+
+  static detail::GpuContext fallback;
+  detail::GpuContext &ctx = state ? state->ctx : fallback;
+  ctx.ensure_capacity(num_sites, num_sites);
+  if (!state || !state->sites_ready) {
+    ScopedTimer t_upload("gpu.upload_sites", timing_enabled());
+    ctx.ensure_sites_uploaded(sites);
+    if (state) state->sites_ready = true;
   }
 
   // zero count
@@ -250,8 +374,7 @@ std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
     check_cuda(cudaMemsetAsync(ctx.d_count, 0, sizeof(uint32_t), ctx.stream), "cudaMemsetAsync count");
   }
 
-  // Stage 2 = kernel + copies
-  ScopedTimer t_stage2("gpu.stage2", timing_enabled());
+  auto t2_start = std::chrono::steady_clock::now();
   {
     ScopedTimer t_kernel("gpu.kernel", timing_enabled());
     detail::launch_off_target_kernel(ctx.d_sites, num_sites, eg.bits, params.max_mismatches,
@@ -278,6 +401,7 @@ std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
                "cudaMemcpyAsync hits back");
     check_cuda(cudaStreamSynchronize(ctx.stream), "cudaStreamSynchronize after hits");
   }
+  auto t2_end = std::chrono::steady_clock::now();
 
   std::vector<OffTargetHit> out;
   out.reserve(host_count);
@@ -293,6 +417,17 @@ std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
     o.score = h.score;
     out.push_back(o);
   }
+
+  if (timing_enabled()) {
+    double s1 = std::chrono::duration<double>(t1_end - t1_start).count();
+    double s2 = std::chrono::duration<double>(t2_end - t2_start).count();
+    uint64_t candidates = static_cast<uint64_t>(sites.size());
+    log_stat("gpu.stage1", BenchStat{candidates, s1});
+    log_stat("gpu.stage2", BenchStat{candidates, s2});
+    double total = std::chrono::duration<double>(t2_end - wall_total_start).count();
+    log_stat("gpu.total", BenchStat{candidates, total});
+  }
+
   return out;
 }
 #endif // CRISPR_GPU_ENABLE_CUDA
@@ -322,14 +457,20 @@ OffTargetEngine::OffTargetEngine(const GenomeIndex &index, EngineParams params)
       params_.backend = Backend::CPU;
     }
   }
+  if (params_.backend == Backend::GPU) {
+    gpu_state_ = std::make_unique<EngineGpuState>();
+  }
 #endif
 }
+
+OffTargetEngine::~OffTargetEngine() = default;
 
 std::vector<OffTargetHit> OffTargetEngine::score_guide(const Guide &guide) const {
   ensure_default_tables_loaded();
   if (params_.backend == Backend::GPU) {
 #ifdef CRISPR_GPU_ENABLE_CUDA
-    return run_gpu_engine(index_, guide, params_);
+    if (!gpu_state_) gpu_state_ = std::make_unique<EngineGpuState>();
+    return run_gpu_engine(index_, guide, params_, gpu_state_.get());
 #else
     return run_cpu_engine(index_, guide, params_);
 #endif
@@ -338,11 +479,34 @@ std::vector<OffTargetHit> OffTargetEngine::score_guide(const Guide &guide) const
 }
 
 std::vector<OffTargetHit> OffTargetEngine::score_guides(const std::vector<Guide> &guides) const {
+  auto t_start = std::chrono::steady_clock::now();
+
   std::vector<OffTargetHit> all;
+  ensure_default_tables_loaded();
+#ifdef CRISPR_GPU_ENABLE_CUDA
+  if (params_.backend == Backend::GPU) {
+    if (!gpu_state_) gpu_state_ = std::make_unique<EngineGpuState>();
+    all = run_gpu_engine_batch(index_, guides, params_, gpu_state_.get());
+  } else {
+    for (const auto &g : guides) {
+      auto h = run_cpu_engine(index_, g, params_);
+      all.insert(all.end(), h.begin(), h.end());
+    }
+  }
+#else
   for (const auto &g : guides) {
-    auto h = score_guide(g);
+    auto h = run_cpu_engine(index_, g, params_);
     all.insert(all.end(), h.begin(), h.end());
   }
+#endif
+
+  if (timing_enabled()) {
+    double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t_start).count();
+    uint64_t candidates = static_cast<uint64_t>(index_.sites().size()) * static_cast<uint64_t>(guides.size());
+    const char *label = params_.backend == Backend::GPU ? "gpu.guides" : "cpu.guides";
+    log_stat(label, BenchStat{candidates, seconds});
+  }
+
   return all;
 }
 

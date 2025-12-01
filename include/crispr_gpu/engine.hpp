@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 #include "crispr_gpu/types.hpp"
 #include "crispr_gpu/genome_index.hpp"
 #include "crispr_gpu/scoring.hpp"
@@ -13,11 +14,14 @@ struct DeviceHit {
   uint8_t mismatches;
   float score;
 };
+
+struct EngineGpuState;
 } // namespace detail
 
 class OffTargetEngine {
 public:
   OffTargetEngine(const GenomeIndex &index, EngineParams params = {});
+  ~OffTargetEngine();
 
   std::vector<OffTargetHit> score_guide(const Guide &guide) const;
 std::vector<OffTargetHit> score_guides(const std::vector<Guide> &guides) const;
@@ -25,6 +29,9 @@ std::vector<OffTargetHit> score_guides(const std::vector<Guide> &guides) const;
 private:
   const GenomeIndex &index_;
   EngineParams params_;
+#ifdef CRISPR_GPU_ENABLE_CUDA
+  mutable std::unique_ptr<detail::EngineGpuState> gpu_state_;
+#endif
 };
 
 // True if this build has CUDA enabled and at least one device is present.
