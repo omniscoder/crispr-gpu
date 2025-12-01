@@ -21,10 +21,12 @@ void launch_off_target_kernel(const SiteRecord *d_sites,
                               uint64_t guide_bits,
                               uint8_t max_mm,
                               uint8_t guide_length,
-                              ScoreParams score_params,
+                              ScoreModel score_model,
                               DeviceHit *d_hits,
                               uint32_t *d_count,
                               cudaStream_t stream);
+
+void upload_scoring_tables(const ScoringTables &tables);
 }                                                                                
 #endif
 
@@ -131,6 +133,10 @@ std::vector<OffTargetHit> run_cpu_engine(const GenomeIndex &index,
   auto t1_start = std::chrono::steady_clock::now();
   EncodedGuide eg = encode_guide(guide, meta.guide_length);
   auto t1_end = std::chrono::steady_clock::now();
+
+  // ensure tables are loaded (may be custom path)
+  const auto &tables = get_scoring_tables(params.score_params);
+  (void)tables;
 
   std::vector<OffTargetHit> hits;
   hits.reserve(1024);
@@ -291,7 +297,7 @@ void cuda_warmup_internal() {
   ctx.ensure_sites_uploaded(host_dummy);
   check_cuda(cudaMemsetAsync(ctx.d_count, 0, sizeof(uint32_t), ctx.stream), "warmup memset");
   detail::launch_off_target_kernel(ctx.d_sites, 1, dummy_bits, 0, 20,
-                                   ScoreParams{}, ctx.d_hits, ctx.d_count, ctx.stream);
+                                   ScoreModel::Hamming, ctx.d_hits, ctx.d_count, ctx.stream);
   check_cuda(cudaStreamSynchronize(ctx.stream), "warmup sync");
 }
 
@@ -320,6 +326,11 @@ std::vector<OffTargetHit> run_gpu_engine_batch(const GenomeIndex &index,
   const auto sites = candidate_sites(index, params, guides.front());
   uint32_t num_sites = static_cast<uint32_t>(sites.size());
   if (num_sites == 0) return {};
+
+  const auto &tables = get_scoring_tables(params.score_params);
+  if (params.score_params.model != ScoreModel::Hamming) {
+    detail::upload_scoring_tables(tables);
+  }
 
   static detail::GpuContext fallback;
   detail::GpuContext &ctx = state ? state->ctx : fallback;
@@ -353,8 +364,9 @@ std::vector<OffTargetHit> run_gpu_engine_batch(const GenomeIndex &index,
     {
       ScopedTimer t_kernel("gpu.kernel", timing_enabled());
       detail::launch_off_target_kernel(ctx.d_sites, num_sites, encoded[gi].bits, params.max_mismatches,
-                                       index.meta().guide_length, params.score_params,
+                                       index.meta().guide_length, params.score_params.model,
                                        ctx.d_hits, ctx.d_count, ctx.stream);
+      check_cuda(cudaGetLastError(), "off_target_kernel launch");
     }
 
     {
@@ -415,6 +427,11 @@ std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
   uint32_t num_sites = static_cast<uint32_t>(sites.size());
   if (num_sites == 0) return {};
 
+  const auto &tables = get_scoring_tables(params.score_params);
+  if (params.score_params.model != ScoreModel::Hamming) {
+    detail::upload_scoring_tables(tables);
+  }
+
   auto t1_start = std::chrono::steady_clock::now();
   EncodedGuide eg = encode_guide(guide, index.meta().guide_length);
   auto t1_end = std::chrono::steady_clock::now();
@@ -438,8 +455,9 @@ std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
   {
     ScopedTimer t_kernel("gpu.kernel", timing_enabled());
     detail::launch_off_target_kernel(ctx.d_sites, num_sites, eg.bits, params.max_mismatches,
-                                     index.meta().guide_length, params.score_params,
+                                     index.meta().guide_length, params.score_params.model,
                                      ctx.d_hits, ctx.d_count, ctx.stream);
+    check_cuda(cudaGetLastError(), "off_target_kernel launch");
   }
 
   {
@@ -452,6 +470,8 @@ std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
 
   uint32_t host_count = *ctx.h_count;
   host_count = std::min<uint32_t>(host_count, num_sites);
+  // debug
+  // std::fprintf(stderr, "debug host_count=%u\n", host_count);
 
   if (host_count > 0) {
     ScopedTimer t_hits("gpu.copy_hits", timing_enabled());

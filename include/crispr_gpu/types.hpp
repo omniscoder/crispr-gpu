@@ -27,7 +27,7 @@ enum class SearchBackend {
 
 struct ScoreParams {
   ScoreModel model{ScoreModel::Hamming};
-  // Future: loadable tables for MIT/CFD
+  std::string table_path{}; // optional override for MIT/CFD tables
 };
 
 struct EngineParams {

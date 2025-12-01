@@ -1,7 +1,6 @@
 #include "crispr_gpu/scoring.hpp"
 
 #include <cmath>
-#include <array>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <cstdlib>
@@ -13,20 +12,15 @@ float score_mismatch_count(uint8_t mismatches) {
   return 1.0f / (1.0f + static_cast<float>(mismatches));
 }
 
-static std::array<float, 20> kMitPositionPenalty = {
-    0.1f, 0.1f, 0.1f, 0.12f, 0.12f, 0.14f, 0.14f, 0.16f, 0.16f, 0.18f,
-    0.18f, 0.20f, 0.22f, 0.24f, 0.26f, 0.30f, 0.34f, 0.38f, 0.42f, 0.45f};
-
-static std::array<float, 20> kCfdPositionWeight = {
-    0.61f, 0.61f, 0.62f, 0.63f, 0.64f, 0.65f, 0.66f, 0.67f, 0.68f, 0.69f,
-    0.70f, 0.71f, 0.72f, 0.74f, 0.76f, 0.78f, 0.80f, 0.83f, 0.86f, 0.90f};
-
-static float kCfdTypeWeight[4][4] = {
-    // guide base A,C,G,T rows; genome base cols
-    {1.0f, 0.97f, 0.48f, 0.88f}, // guide A
-    {0.87f, 1.0f, 0.55f, 0.73f}, // guide C
-    {0.14f, 0.34f, 1.0f, 0.03f}, // guide G
-    {0.76f, 0.67f, 0.32f, 1.0f}  // guide T
+static ScoringTables g_tables = {
+    /*mit_position_penalty*/ {0.1f, 0.1f, 0.1f, 0.12f, 0.12f, 0.14f, 0.14f, 0.16f, 0.16f, 0.18f,
+                              0.18f, 0.20f, 0.22f, 0.24f, 0.26f, 0.30f, 0.34f, 0.38f, 0.42f, 0.45f},
+    /*cfd_position_weight*/  {0.61f, 0.61f, 0.62f, 0.63f, 0.64f, 0.65f, 0.66f, 0.67f, 0.68f, 0.69f,
+                              0.70f, 0.71f, 0.72f, 0.74f, 0.76f, 0.78f, 0.80f, 0.83f, 0.86f, 0.90f},
+    /*cfd_type_weight*/      {{1.0f, 0.97f, 0.48f, 0.88f},
+                              {0.87f, 1.0f, 0.55f, 0.73f},
+                              {0.14f, 0.34f, 1.0f, 0.03f},
+                              {0.76f, 0.67f, 0.32f, 1.0f}}
 };
 
 void load_cfd_tables(const std::string &json_path) {
@@ -43,20 +37,20 @@ void load_cfd_tables(const std::string &json_path) {
       int g = std::string("ACGT").find(k[0]);
       int s = std::string("ACGT").find(k[1]);
       if (g >= 0 && s >= 0) {
-        kCfdTypeWeight[g][s] = kv.value().get<float>();
+        g_tables.cfd_type_weight[g][s] = kv.value().get<float>();
       }
     }
   }
   if (j.contains("position")) {
     auto pos = j["position"];
-    for (size_t i = 0; i < std::min<size_t>(kCfdPositionWeight.size(), pos.size()); ++i) {
-      kCfdPositionWeight[i] = pos[i].get<float>();
+    for (size_t i = 0; i < std::min<size_t>(g_tables.cfd_position_weight.size(), pos.size()); ++i) {
+      g_tables.cfd_position_weight[i] = pos[i].get<float>();
     }
   }
   if (j.contains("mit_position_penalty")) {
     auto pos = j["mit_position_penalty"];
-    for (size_t i = 0; i < std::min<size_t>(kMitPositionPenalty.size(), pos.size()); ++i) {
-      kMitPositionPenalty[i] = pos[i].get<float>();
+    for (size_t i = 0; i < std::min<size_t>(g_tables.mit_position_penalty.size(), pos.size()); ++i) {
+      g_tables.mit_position_penalty[i] = pos[i].get<float>();
     }
   }
 }
@@ -86,8 +80,8 @@ void ensure_default_tables_loaded() {
 float score_mit(const std::vector<uint8_t> &mismatch_positions, [[maybe_unused]] uint8_t guide_length) {
   float score = 1.0f;
   for (auto pos : mismatch_positions) {
-    if (pos < kMitPositionPenalty.size()) {
-      score *= (1.0f - kMitPositionPenalty[pos]);
+    if (pos < g_tables.mit_position_penalty.size()) {
+      score *= (1.0f - g_tables.mit_position_penalty[pos]);
     } else {
       score *= 0.5f; // conservative penalty for unexpected length
     }
@@ -112,11 +106,22 @@ float score_cfd_bits(uint64_t guide_bits, uint64_t site_bits, uint8_t guide_leng
     uint8_t g = bits_at(guide_bits, p, guide_length);
     uint8_t s = bits_at(site_bits, p, guide_length);
     if (g == s) continue;
-    float pos_w = (p < kCfdPositionWeight.size()) ? kCfdPositionWeight[p] : 0.7f;
-    float type_w = kCfdTypeWeight[g][s];
+    float pos_w = (p < g_tables.cfd_position_weight.size()) ? g_tables.cfd_position_weight[p] : 0.7f;
+    float type_w = g_tables.cfd_type_weight[g][s];
     score *= (pos_w * type_w);
   }
   return score;
+}
+
+const ScoringTables &get_scoring_tables(const ScoreParams &params) {
+  static std::string last_path;
+  if (!params.table_path.empty() && params.table_path != last_path) {
+    load_cfd_tables(params.table_path);
+    last_path = params.table_path;
+    return g_tables;
+  }
+  ensure_default_tables_loaded();
+  return g_tables;
 }
 
 } // namespace crispr_gpu
