@@ -56,6 +56,7 @@ struct CLIOptionsScore {
       Backend::CPU
 #endif
   };
+  SearchBackend search_backend{SearchBackend::BruteForce};
 };
 
 static void print_usage() {
@@ -63,6 +64,7 @@ static void print_usage() {
   std::cerr << "Usage:\n";
   std::cerr << "  crispr-gpu index --fasta hg38.fa --pam NGG --guide-length 20 --out hg38.idx\n";
   std::cerr << "  crispr-gpu score --index hg38.idx --guides guides.tsv --max-mm 4 --score-model hamming --backend cpu|gpu --output hits.tsv\n";
+  std::cerr << "  crispr-gpu score --search-backend brute|fmi  # FM-index path (WIP)\n";
   std::cerr << "  crispr-gpu score --cfd-table cfd.json  # override CFD weights\n";
   std::cerr << "  crispr-gpu warmup  # warm CUDA context (no-op if CUDA disabled)\n";
   std::cerr << "  crispr-gpu --version\n";
@@ -85,6 +87,15 @@ static Backend parse_backend(const std::string &s) {
   if (l == "cpu") return Backend::CPU;
   if (l == "gpu") return Backend::GPU;
   throw std::runtime_error("Unknown backend: " + s);
+}
+
+static SearchBackend parse_search_backend(const std::string &s) {
+  std::string l = s;
+  std::transform(l.begin(), l.end(), l.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  if (l == "brute" || l == "bruteforce" || l == "scan") return SearchBackend::BruteForce;
+  if (l == "fmi" || l == "fmindex") return SearchBackend::FMIndex;
+  throw std::runtime_error("Unknown search backend: " + s);
 }
 
 static std::vector<Guide> read_guides(const std::string &path) {
@@ -167,6 +178,7 @@ int main(int argc, char **argv) {
         if (arg == "--max-mm" && i + 1 < argc) { opt.max_mm = static_cast<uint8_t>(std::stoi(argv[++i])); continue; }
         if (arg == "--score-model" && i + 1 < argc) { opt.score_model = parse_score_model(argv[++i]); continue; }
         if (arg == "--backend" && i + 1 < argc) { opt.backend = parse_backend(argv[++i]); continue; }
+        if (arg == "--search-backend" && i + 1 < argc) { opt.search_backend = parse_search_backend(argv[++i]); continue; }
       }
       if (opt.index_path.empty() || opt.guides_path.empty()) {
         throw std::runtime_error("--index and --guides are required");
@@ -185,6 +197,7 @@ int main(int argc, char **argv) {
       ep.max_mismatches = opt.max_mm;
       ep.score_params.model = opt.score_model;
       ep.backend = opt.backend;
+      ep.search_backend = opt.search_backend;
       if (!opt.cfd_table.empty()) {
         ScopedTimer t_cfd("cli.score.load_cfd", timing_enabled());
         load_cfd_tables(opt.cfd_table);

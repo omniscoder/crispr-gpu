@@ -52,6 +52,7 @@ set(CRISPR_GPU_BASE_SOURCES
   src/types.cpp
   src/genome_index.cpp
   src/genome_index_build.cpp
+  src/fm_index.cpp
   src/engine.cpp
   src/scoring.cpp
   src/version.cpp
