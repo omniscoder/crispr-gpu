@@ -1,5 +1,6 @@
 #include "crispr_gpu/genome_index.hpp"
 #include "crispr_gpu/types.hpp"
+#include "crispr_gpu/fm_index.hpp"
 
 #include <fstream>
 #include <stdexcept>
@@ -20,6 +21,28 @@ struct IndexHeader {
 
 constexpr const char *kMagic = "CRSPRDX"; // 7 chars + null padding
 constexpr uint32_t kVersion = 1;
+
+FmIndex build_fm_for_chrom(const GenomeIndex &idx, uint32_t chrom_id) {
+  const auto guide_len = idx.meta().guide_length;
+  std::vector<std::string> protos;
+  std::vector<FmIndex::Locus> loci;
+  protos.reserve(idx.sites().size());
+  loci.reserve(idx.sites().size());
+  for (size_t si = 0; si < idx.sites().size(); ++si) {
+    const auto &s = idx.sites()[si];
+    if (s.chrom_id != chrom_id) continue;
+    std::string seq = decode_sequence_2bit(s.seq_bits, guide_len);
+    protos.push_back(seq);
+    loci.push_back({s.chrom_id, s.pos, s.strand, static_cast<uint32_t>(si)});
+  }
+  FmIndexHeader hdr;
+  hdr.guide_length = guide_len;
+  hdr.pam = idx.meta().pam;
+  hdr.both_strands = idx.meta().both_strands;
+  hdr.occ_block = 128;
+  hdr.sa_sample_rate = 32;
+  return build_fm_index(protos, loci, hdr);
+}
 }
 
 GenomeIndex GenomeIndex::load(const std::string &index_path) {
@@ -71,6 +94,13 @@ GenomeIndex GenomeIndex::load(const std::string &index_path) {
     in.read(reinterpret_cast<char *>(&rec.strand), sizeof(rec.strand));
     if (!in) throw std::runtime_error("Index truncated: sites");
     idx.sites_.push_back(rec);
+  }
+
+  // Rebuild FM indexes from sites for each contig (keeps on-disk format unchanged)
+  idx.fm_indices_.clear();
+  idx.fm_indices_.reserve(idx.chroms_.size());
+  for (uint32_t cid = 0; cid < idx.chroms_.size(); ++cid) {
+    idx.fm_indices_.push_back(build_fm_for_chrom(idx, cid));
   }
 
   return idx;
