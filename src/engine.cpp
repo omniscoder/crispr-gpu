@@ -74,11 +74,19 @@ std::vector<uint8_t> mismatch_positions(uint64_t a, uint64_t b, uint8_t length) 
   return positions;
 }
 
+const std::vector<SiteRecord> &candidate_sites(const GenomeIndex &index, const EngineParams &params) {
+  if (params.search_backend == SearchBackend::BruteForce) {
+    return index.sites();
+  }
+  throw std::runtime_error("SearchBackend::FMIndex is not implemented yet");
+}
+
 std::vector<OffTargetHit> run_cpu_engine(const GenomeIndex &index,
                                          const Guide &guide,
                                          const EngineParams &params) {
   auto wall_total_start = std::chrono::steady_clock::now();
   const auto &meta = index.meta();
+  const auto &sites = candidate_sites(index, params);
   auto t1_start = std::chrono::steady_clock::now();
   EncodedGuide eg = encode_guide(guide, meta.guide_length);
   auto t1_end = std::chrono::steady_clock::now();
@@ -87,7 +95,7 @@ std::vector<OffTargetHit> run_cpu_engine(const GenomeIndex &index,
   hits.reserve(1024);
 
   auto t2_start = std::chrono::steady_clock::now();
-  for (const auto &site : index.sites()) {
+  for (const auto &site : sites) {
     uint8_t mm = hamming_distance_2bit(eg.bits, site.seq_bits, meta.guide_length);
     if (mm > params.max_mismatches) continue;
 
@@ -122,7 +130,7 @@ std::vector<OffTargetHit> run_cpu_engine(const GenomeIndex &index,
 
   double s1 = std::chrono::duration<double>(t1_end - t1_start).count();
   double s2 = std::chrono::duration<double>(t2_end - t2_start).count();
-  uint64_t candidates = static_cast<uint64_t>(index.sites().size());
+  uint64_t candidates = static_cast<uint64_t>(sites.size());
   if (timing_enabled()) {
     log_stat("cpu.stage1", BenchStat{candidates, s1});
     log_stat("cpu.stage2", BenchStat{candidates, s2});
@@ -257,7 +265,7 @@ std::vector<OffTargetHit> run_gpu_engine_batch(const GenomeIndex &index,
                                                EngineGpuState *state) {
   if (guides.empty()) return {};
 
-  const auto &sites = index.sites();
+  const auto &sites = candidate_sites(index, params);
   uint32_t num_sites = static_cast<uint32_t>(sites.size());
   if (num_sites == 0) return {};
 
@@ -351,7 +359,7 @@ std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
                                          const EngineParams &params,
                                          EngineGpuState *state) {
   auto wall_total_start = std::chrono::steady_clock::now();
-  const auto &sites = index.sites();
+  const auto &sites = candidate_sites(index, params);
   uint32_t num_sites = static_cast<uint32_t>(sites.size());
   if (num_sites == 0) return {};
 

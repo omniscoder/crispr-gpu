@@ -19,6 +19,12 @@ enum class Backend {
   GPU
 };
 
+// Stage-1 search backend: today brute-force scan; FM-index/seeded search planned.
+enum class SearchBackend {
+  BruteForce,
+  FMIndex
+};
+
 struct ScoreParams {
   ScoreModel model{ScoreModel::Hamming};
   // Future: loadable tables for MIT/CFD
@@ -34,6 +40,7 @@ struct EngineParams {
       Backend::CPU
 #endif
   };
+  SearchBackend search_backend{SearchBackend::BruteForce};
 };
 
 struct Guide {
