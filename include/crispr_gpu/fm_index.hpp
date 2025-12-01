@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <array>
 
 namespace crispr_gpu {
 
@@ -16,29 +17,30 @@ struct FmIndexHeader {
   std::string pam{"NGG"};
   bool both_strands{true};
   uint64_t text_length{0};
-  uint64_t sampled_sa_interval{32};
+  uint32_t occ_block{128};
+  uint32_t sa_sample_rate{32};
 };
 
 struct FmIndex {
   FmIndexHeader header;
-  // C array: cumulative counts for alphabet [A,C,G,T]. size=5 for convenience.
-  uint64_t C[5]{};
-  // Occ counts sampled every occ_block for each symbol; flattened as [symbol][block].
-  uint32_t occ_block{128};
-  std::vector<uint32_t> occ_A;
-  std::vector<uint32_t> occ_C;
-  std::vector<uint32_t> occ_G;
-  std::vector<uint32_t> occ_T;
-  // Sampled suffix array (positions into concatenated text).
+  // BWT over encoded alphabet {A=0,C=1,G=2,T=3,N=4}
+  std::vector<uint8_t> bwt;
+  // C array: cumulative counts for alphabet [A,C,G,T,N]. size=5.
+  std::array<uint32_t,5> C{0,0,0,0,0};
+  // Occ checkpoints: every occ_block rows, store counts for all symbols.
+  std::vector<std::array<uint32_t,5>> occ_checkpoints;
+  // Sampled SA values every sa_sample_rate rows.
   std::vector<uint32_t> sa_samples;
-  uint32_t sa_sample_rate{32};
-  // Per-protospacer mapping back to chromosome/pos/strand.
+  // Text length (including sentinel); sentinel is the smallest symbol.
+  uint32_t text_len{0};
+  // Per-hit mapping back to contig coordinates.
   struct Locus {
     uint32_t chrom_id;
     uint32_t pos;
     uint8_t strand;
   };
-  std::vector<Locus> loci; // same length as text_length/guide_length
+  // One locus per suffix start; length = text_len.
+  std::vector<Locus> loci;
 };
 
 // Build FM-index from a set of protospacers already filtered by PAM.
@@ -56,5 +58,8 @@ std::vector<uint32_t> fm_search_hamming(const FmIndex &index,
                                         const std::string &pattern,
                                         uint8_t max_mismatches);
 
-} // namespace crispr_gpu
+// Convert BWT row to reference position.
+uint32_t fm_row_to_pos(const FmIndex &index, uint32_t row);
 
+
+} // namespace crispr_gpu
