@@ -93,3 +93,37 @@ BENCH_SCALE=large ./benchmarks/run_synthetic.sh     # 50 Mb genome
 
 ## License
 MIT
+### Scoring modes
+
+The scorer supports Hamming (default), MIT, and CFD.
+
+CLI:
+
+```bash
+# Hamming (default)
+crispr-gpu score --index hg38.idx --guides guides.tsv
+
+# CFD scoring with bundled defaults
+crispr-gpu score --index hg38.idx --guides guides.tsv --score-model cfd
+
+# MIT scoring with a custom table
+crispr-gpu score --index hg38.idx --guides guides.tsv \
+  --score-model mit \
+  --score-table data/mit_custom.json
+```
+
+Python:
+
+```python
+from crispr_gpu import OffTargetEngine, EngineParams, ScoreParams, SearchBackend, GenomeIndex
+
+idx = GenomeIndex.load("hg38.idx")
+params = EngineParams(
+    search_backend=SearchBackend.FMIndex,
+    score_params=ScoreParams(model='cfd', table_path='data/cfd_default.json'),
+)
+eng = OffTargetEngine(idx, params)
+hits = eng.score_guides(guides)
+```
+
+Bundled defaults live under `data/cfd_default.json` and `data/mit_default.json`; supply `--score-table` / `table_path` to override.

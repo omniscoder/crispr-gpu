@@ -27,13 +27,15 @@ PYBIND11_MODULE(crispr_gpu, m) {
 
   py::class_<ScoreParams>(m, "ScoreParams")
       .def(py::init<>())
-      .def_readwrite("model", &ScoreParams::model);
+      .def_readwrite("model", &ScoreParams::model)
+      .def_readwrite("table_path", &ScoreParams::table_path);
 
   py::class_<EngineParams>(m, "EngineParams")
       .def(py::init<>())
       .def_readwrite("max_mismatches", &EngineParams::max_mismatches)
       .def_readwrite("backend", &EngineParams::backend)
-      .def_readwrite("score_params", &EngineParams::score_params);
+      .def_readwrite("score_params", &EngineParams::score_params)
+      .def_readwrite("search_backend", &EngineParams::search_backend);
 
   m.def("load_cfd_tables", &load_cfd_tables, "Load CFD/MM/position tables from JSON");
 

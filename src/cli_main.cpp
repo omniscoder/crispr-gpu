@@ -46,7 +46,7 @@ struct CLIOptionsScore {
   std::string index_path;
   std::string guides_path;
   std::string output_path{""};
-  std::string cfd_table{""};
+  std::string score_table{""};
   uint8_t max_mm{4};
   ScoreModel score_model{ScoreModel::Hamming};
   Backend backend{
@@ -65,7 +65,7 @@ static void print_usage() {
   std::cerr << "  crispr-gpu index --fasta hg38.fa --pam NGG --guide-length 20 --out hg38.idx\n";
   std::cerr << "  crispr-gpu score --index hg38.idx --guides guides.tsv --max-mm 4 --score-model hamming --backend cpu|gpu --output hits.tsv\n";
   std::cerr << "  crispr-gpu score --search-backend brute|fmi  # FM-index path (WIP)\n";
-  std::cerr << "  crispr-gpu score --cfd-table cfd.json  # override CFD weights\n";
+  std::cerr << "  crispr-gpu score --score-table table.json  # override MIT/CFD weights\n";
   std::cerr << "  crispr-gpu warmup  # warm CUDA context (no-op if CUDA disabled)\n";
   std::cerr << "  crispr-gpu --version\n";
 }
@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
         if (arg == "--index" && i + 1 < argc) { opt.index_path = argv[++i]; continue; }
         if (arg == "--guides" && i + 1 < argc) { opt.guides_path = argv[++i]; continue; }
         if (arg == "--output" && i + 1 < argc) { opt.output_path = argv[++i]; continue; }
-        if (arg == "--cfd-table" && i + 1 < argc) { opt.cfd_table = argv[++i]; continue; }
+        if (arg == "--score-table" && i + 1 < argc) { opt.score_table = argv[++i]; continue; }
         if (arg == "--max-mm" && i + 1 < argc) { opt.max_mm = static_cast<uint8_t>(std::stoi(argv[++i])); continue; }
         if (arg == "--score-model" && i + 1 < argc) { opt.score_model = parse_score_model(argv[++i]); continue; }
         if (arg == "--backend" && i + 1 < argc) { opt.backend = parse_backend(argv[++i]); continue; }
@@ -196,11 +196,12 @@ int main(int argc, char **argv) {
       EngineParams ep;
       ep.max_mismatches = opt.max_mm;
       ep.score_params.model = opt.score_model;
+      ep.score_params.table_path = opt.score_table;
       ep.backend = opt.backend;
       ep.search_backend = opt.search_backend;
-      if (!opt.cfd_table.empty()) {
-        ScopedTimer t_cfd("cli.score.load_cfd", timing_enabled());
-        load_cfd_tables(opt.cfd_table);
+      if (!opt.score_table.empty()) {
+        ScopedTimer t_cfd("cli.score.load_table", timing_enabled());
+        load_cfd_tables(opt.score_table);
       }
       OffTargetEngine engine(idx, ep);
       std::vector<OffTargetHit> hits;

@@ -55,12 +55,41 @@ void load_cfd_tables(const std::string &json_path) {
   }
 }
 
+void load_mit_tables(const std::string &json_path) {
+  // MIT and CFD share the same JSON schema in this implementation.
+  load_cfd_tables(json_path);
+}
+
 static std::string default_cfd_path() {
+  const char *fname = "cfd_default.json";
+  std::vector<std::string> candidates;
 #ifdef CRISPR_GPU_DATA_DIR
-  return std::string(CRISPR_GPU_DATA_DIR) + "/cfd_default.json";
-#else
-  return "";
+  candidates.push_back(std::string(CRISPR_GPU_DATA_DIR) + "/" + fname);
 #endif
+  candidates.push_back(std::string("data/") + fname);
+  candidates.push_back(std::string("../data/") + fname);
+  candidates.push_back(std::string("../../data/") + fname);
+  for (const auto &p : candidates) {
+    std::ifstream f(p);
+    if (f.good()) return p;
+  }
+  return "";
+}
+
+static std::string default_mit_path() {
+  const char *fname = "mit_default.json";
+  std::vector<std::string> candidates;
+#ifdef CRISPR_GPU_DATA_DIR
+  candidates.push_back(std::string(CRISPR_GPU_DATA_DIR) + "/" + fname);
+#endif
+  candidates.push_back(std::string("data/") + fname);
+  candidates.push_back(std::string("../data/") + fname);
+  candidates.push_back(std::string("../../data/") + fname);
+  for (const auto &p : candidates) {
+    std::ifstream f(p);
+    if (f.good()) return p;
+  }
+  return "";
 }
 
 void ensure_default_tables_loaded() {
@@ -68,11 +97,11 @@ void ensure_default_tables_loaded() {
   if (loaded) return;
   std::string path = default_cfd_path();
   if (!path.empty()) {
-    try {
-      load_cfd_tables(path);
-    } catch (...) {
-      // keep defaults
-    }
+    try { load_cfd_tables(path); } catch (...) {}
+  }
+  std::string mit_path = default_mit_path();
+  if (!mit_path.empty()) {
+    try { load_mit_tables(mit_path); } catch (...) {}
   }
   loaded = true;
 }
@@ -121,6 +150,15 @@ const ScoringTables &get_scoring_tables(const ScoreParams &params) {
     return g_tables;
   }
   ensure_default_tables_loaded();
+  if (params.table_path.empty()) {
+    if (params.model == ScoreModel::MIT) {
+      auto p = default_mit_path();
+      if (!p.empty()) load_mit_tables(p);
+    } else if (params.model == ScoreModel::CFD) {
+      auto p = default_cfd_path();
+      if (!p.empty()) load_cfd_tables(p);
+    }
+  }
   return g_tables;
 }
 
