@@ -1,5 +1,6 @@
 #include "crispr_gpu/genome_index.hpp"
 #include "crispr_gpu/types.hpp"
+#include "crispr_gpu/fm_index.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -71,7 +72,9 @@ std::vector<FastaRecord> read_fasta(const std::string &path) {
 }
 
 void add_plus_strand_sites(const std::string &seq, uint32_t chrom_id, uint8_t guide_len,
-                           const std::string &pam, std::vector<SiteRecord> &sites) {
+                           const std::string &pam, std::vector<SiteRecord> &sites,
+                           std::vector<std::string> *protospacers = nullptr,
+                           std::vector<FmIndex::Locus> *loci = nullptr) {
   const size_t pam_len = pam.size();
   if (seq.size() < guide_len + pam_len) return;
   for (size_t i = 0; i + guide_len + pam_len <= seq.size(); ++i) {
@@ -86,6 +89,10 @@ void add_plus_strand_sites(const std::string &seq, uint32_t chrom_id, uint8_t gu
       rec.pos = static_cast<uint32_t>(i);
       rec.strand = 0;
       sites.push_back(rec);
+      if (protospacers && loci) {
+        protospacers->push_back(guide_seq);
+        loci->push_back({chrom_id, static_cast<uint32_t>(i), 0, static_cast<uint32_t>(sites.size() - 1)});
+      }
     } catch (const std::runtime_error &) {
       continue; // skip sequences with ambiguous bases
     }
@@ -93,7 +100,9 @@ void add_plus_strand_sites(const std::string &seq, uint32_t chrom_id, uint8_t gu
 }
 
 void add_minus_strand_sites(const std::string &seq, uint32_t chrom_id, uint8_t guide_len,
-                            const std::string &pam, std::vector<SiteRecord> &sites) {
+                            const std::string &pam, std::vector<SiteRecord> &sites,
+                            std::vector<std::string> *protospacers = nullptr,
+                            std::vector<FmIndex::Locus> *loci = nullptr) {
   const std::string pam_rc = revcomp(pam);
   const size_t pam_len = pam.size();
   if (seq.size() < guide_len + pam_len) return;
@@ -110,6 +119,10 @@ void add_minus_strand_sites(const std::string &seq, uint32_t chrom_id, uint8_t g
       rec.pos = static_cast<uint32_t>(i + pam_len);
       rec.strand = 1;
       sites.push_back(rec);
+      if (protospacers && loci) {
+        protospacers->push_back(protospacer_rc);
+        loci->push_back({chrom_id, static_cast<uint32_t>(i + pam_len), 1, static_cast<uint32_t>(sites.size() - 1)});
+      }
     } catch (const std::runtime_error &) {
       continue;
     }
@@ -132,10 +145,22 @@ GenomeIndex GenomeIndex::build(const std::string &fasta_path, const IndexParams 
   uint32_t chrom_id = 0;
   for (const auto &rec : records) {
     out.chroms_.push_back({rec.name, rec.sequence.size()});
-    add_plus_strand_sites(rec.sequence, chrom_id, params.guide_length, params.pam, out.sites_);
+    std::vector<std::string> protos;
+    std::vector<FmIndex::Locus> loci;
+
+    add_plus_strand_sites(rec.sequence, chrom_id, params.guide_length, params.pam, out.sites_, &protos, &loci);
     if (params.both_strands) {
-      add_minus_strand_sites(rec.sequence, chrom_id, params.guide_length, params.pam, out.sites_);
+      add_minus_strand_sites(rec.sequence, chrom_id, params.guide_length, params.pam, out.sites_, &protos, &loci);
     }
+
+    FmIndexHeader hdr;
+    hdr.guide_length = params.guide_length;
+    hdr.pam = params.pam;
+    hdr.both_strands = params.both_strands;
+    hdr.occ_block = 128;
+    hdr.sa_sample_rate = 32;
+    auto fm = build_fm_index(protos, loci, hdr);
+    out.fm_indices_.push_back(std::move(fm));
     ++chrom_id;
   }
   return out;

@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include "crispr_gpu/types.hpp"
+#include "crispr_gpu/fm_index.hpp"
 
 namespace crispr_gpu {
 
@@ -25,11 +26,13 @@ public:
   const std::vector<SiteRecord> &sites() const { return sites_; }
   const std::vector<ChromInfo> &chromosomes() const { return chroms_; }
   const IndexMeta &meta() const { return meta_; }
+  const std::vector<FmIndex> &fm_indices() const { return fm_indices_; }
 
 private:
   IndexMeta meta_{};
   std::vector<ChromInfo> chroms_;
   std::vector<SiteRecord> sites_;
+  std::vector<FmIndex> fm_indices_;
 };
 
 } // namespace crispr_gpu

@@ -74,11 +74,52 @@ std::vector<uint8_t> mismatch_positions(uint64_t a, uint64_t b, uint8_t length) 
   return positions;
 }
 
-const std::vector<SiteRecord> &candidate_sites(const GenomeIndex &index, const EngineParams &params) {
-  if (params.search_backend == SearchBackend::BruteForce) {
-    return index.sites();
+const std::vector<SiteRecord> candidate_sites_bruteforce(const GenomeIndex &index, const EngineParams &) {
+  return index.sites();
+}
+
+std::vector<SiteRecord> candidate_sites_fm(const GenomeIndex &index, const EngineParams &params, const Guide &guide) {
+  if (index.fm_indices().empty()) {
+    throw std::runtime_error("FM index not available in this GenomeIndex");
   }
-  throw std::runtime_error("SearchBackend::FMIndex is not implemented yet");
+  std::vector<SiteRecord> sites;
+  sites.reserve(1024);
+
+  std::vector<uint8_t> pat_fwd(guide.sequence.size());
+  std::transform(guide.sequence.begin(), guide.sequence.end(), pat_fwd.begin(), [](char c){ return (uint8_t)((c=='A'||c=='a')?0:(c=='C'||c=='c')?1:(c=='G'||c=='g')?2:(c=='T'||c=='t')?3:4); });
+  std::string guide_rc = revcomp(guide.sequence);
+  std::vector<uint8_t> pat_rev(guide_rc.size());
+  std::transform(guide_rc.begin(), guide_rc.end(), pat_rev.begin(), [](char c){ return (uint8_t)((c=='A'||c=='a')?0:(c=='C'||c=='c')?1:(c=='G'||c=='g')?2:(c=='T'||c=='t')?3:4); });
+
+  uint8_t K = params.max_mismatches;
+
+  for (size_t ci = 0; ci < index.fm_indices().size(); ++ci) {
+    const auto &fm = index.fm_indices()[ci];
+    // forward
+    auto rows_f = fm_search_hamming(fm, guide.sequence, K);
+    for (auto row : rows_f) {
+      uint32_t pos = fm_row_to_pos(fm, row);
+      uint32_t proto_idx = pos / (fm.header.guide_length + 1);
+      const auto &loc = fm.loci[proto_idx];
+      sites.push_back(index.sites()[loc.site_idx]);
+    }
+    // reverse
+    auto rows_r = fm_search_hamming(fm, guide_rc, K);
+    for (auto row : rows_r) {
+      uint32_t pos = fm_row_to_pos(fm, row);
+      uint32_t proto_idx = pos / (fm.header.guide_length + 1);
+      const auto &loc = fm.loci[proto_idx];
+      sites.push_back(index.sites()[loc.site_idx]);
+    }
+  }
+  return sites;
+}
+
+std::vector<SiteRecord> candidate_sites(const GenomeIndex &index, const EngineParams &params, const Guide &guide) {
+  if (params.search_backend == SearchBackend::BruteForce) {
+    return candidate_sites_bruteforce(index, params);
+  }
+  return candidate_sites_fm(index, params, guide);
 }
 
 std::vector<OffTargetHit> run_cpu_engine(const GenomeIndex &index,
@@ -86,7 +127,7 @@ std::vector<OffTargetHit> run_cpu_engine(const GenomeIndex &index,
                                          const EngineParams &params) {
   auto wall_total_start = std::chrono::steady_clock::now();
   const auto &meta = index.meta();
-  const auto &sites = candidate_sites(index, params);
+  const auto sites = candidate_sites(index, params, guide);
   auto t1_start = std::chrono::steady_clock::now();
   EncodedGuide eg = encode_guide(guide, meta.guide_length);
   auto t1_end = std::chrono::steady_clock::now();
@@ -265,7 +306,18 @@ std::vector<OffTargetHit> run_gpu_engine_batch(const GenomeIndex &index,
                                                EngineGpuState *state) {
   if (guides.empty()) return {};
 
-  const auto &sites = candidate_sites(index, params);
+  // FMIndex path: fallback to per-guide GPU scoring (sites depend on guide).
+  if (params.search_backend != SearchBackend::BruteForce) {
+    std::vector<OffTargetHit> all;
+    all.reserve(guides.size() * 4);
+    for (const auto &g : guides) {
+      auto h = run_gpu_engine(index, g, params, state);
+      all.insert(all.end(), h.begin(), h.end());
+    }
+    return all;
+  }
+
+  const auto sites = candidate_sites(index, params, guides.front());
   uint32_t num_sites = static_cast<uint32_t>(sites.size());
   if (num_sites == 0) return {};
 
@@ -359,7 +411,7 @@ std::vector<OffTargetHit> run_gpu_engine(const GenomeIndex &index,
                                          const EngineParams &params,
                                          EngineGpuState *state) {
   auto wall_total_start = std::chrono::steady_clock::now();
-  const auto &sites = candidate_sites(index, params);
+  const auto sites = candidate_sites(index, params, guide);
   uint32_t num_sites = static_cast<uint32_t>(sites.size());
   if (num_sites == 0) return {};
 

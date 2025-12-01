@@ -38,6 +38,7 @@ struct FmIndex {
     uint32_t chrom_id;
     uint32_t pos;
     uint8_t strand;
+    uint32_t site_idx; // index into GenomeIndex sites_ for quick lookup
   };
   // One locus per suffix start; length = text_len.
   std::vector<Locus> loci;
