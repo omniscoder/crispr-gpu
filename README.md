@@ -12,12 +12,20 @@ crispr-gpu index \
   --guide-length 20 \
   --out hg38_spcas9_ngg.idx
 
-# Score guides
+# Score guides (Hamming, brute-force search)
 crispr-gpu score \
   --index hg38_spcas9_ngg.idx \
   --guides guides.tsv \
   --max-mm 4 \
   --score-model cfd \
+  --output hits.tsv
+
+# Use FM-index backend (K=0 fast; K>0 experimental)
+crispr-gpu score \
+  --index hg38_spcas9_ngg.idx \
+  --guides guides.tsv \
+  --search-backend fmi \
+  --max-mm 0 \
   --output hits.tsv
 ```
 
@@ -32,6 +40,8 @@ params = cg.EngineParams()
 params.score_params.model = cg.ScoreModel.CFD
 params.max_mismatches = 4
 params.backend = cg.Backend.GPU
+# Optional: FM backend (K=0 recommended publicly)
+# params.search_backend = cg.SearchBackend.FMIndex
 
 engine = cg.OffTargetEngine(idx, params)
 

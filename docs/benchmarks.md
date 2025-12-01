@@ -37,6 +37,7 @@ Notes:
 - Candidate count = (#sites) × (#guides); hits counted from output rows (header excluded).
 - Warm GPU 500-guide runs show ~±10% variance (1.29e9–1.55e9 cand/s) across repeated runs on the same GTX 1060; numbers above use a representative run.
 - Persistent GPU state + batch scoring improved the 50 Mb / 500 guide warm CGCT from ~1.20e9 (v0.10-bench) to ~1.45e9 (~22% uplift) without kernel changes; this is the brute-force Hamming baseline for future FM-index and DPX work.
+- FM backend: `--search-backend fmi` is supported. FM K=0 is modestly faster on synthetic large cases; FM K>0 is correct but currently unoptimized and should be considered experimental on large genomes (naive SA + DFS).
 
 ## How to reproduce
 ```bash
