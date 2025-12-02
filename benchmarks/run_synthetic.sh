@@ -164,7 +164,7 @@ PY
 )
     fi
 
-    echo "scale=$BENSCALE backend=$BACKEND K=$K guides=$guides_cur candidates=$candidates cpu_time=$time_cpu cpu_cgct=$cpu_eps gpu_cold_time=$time_gpu_cold gpu_cold_cgct=$gpu_eps_cold gpu_warm_time=$time_gpu_warm gpu_warm_cgct=$gpu_eps_warm hits_cpu=$hits_cpu_count hits_gpu=$hits_gpu_count"
+    echo "scale=$BENSCALE backend=$BACKEND score_model=$SCORE_MODEL K=$K guides=$guides_cur candidates=$candidates cpu_time=$time_cpu cpu_cgct=$cpu_eps gpu_cold_time=$time_gpu_cold gpu_cold_cgct=$gpu_eps_cold gpu_warm_time=$time_gpu_warm gpu_warm_cgct=$gpu_eps_warm hits_cpu=$hits_cpu_count hits_gpu=$hits_gpu_count"
     echo
   done
 done
