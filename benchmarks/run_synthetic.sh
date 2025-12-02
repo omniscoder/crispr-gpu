@@ -113,11 +113,29 @@ for guides_cur in "${GUIDE_LIST[@]}"; do
 
     if [[ $gpu_available -eq 1 ]]; then
       # cold run
-      time_gpu_cold=$( /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides_file" --max-mm "$K" --score-model "$SCORE_MODEL" --backend gpu --search-backend "$BACKEND" --output "$hits_gpu" >"$log_gpu" 2>&1 || true; cat "$time_gpu_file" )
+      set +e
+      /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides_file" --max-mm "$K" --score-model "$SCORE_MODEL" --backend gpu --search-backend "$BACKEND" --output "$hits_gpu" >"$log_gpu" 2>&1
+      rc=$?
+      set -e
+      if [[ $rc -eq 0 ]]; then
+        time_gpu_cold=$(cat "$time_gpu_file")
+      else
+        time_gpu_cold="ERR"
+      fi
       # warm run (optional)
       if [[ ${CRISPR_GPU_WARMUP:-0} -ne 0 ]]; then
         ./build/crispr-gpu warmup >/dev/null 2>&1 || true
-        time_gpu_warm=$( /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides_file" --max-mm "$K" --score-model "$SCORE_MODEL" --backend gpu --search-backend "$BACKEND" --output "$hits_gpu" >"$log_gpu" 2>&1 || true; cat "$time_gpu_file" )
+        set +e
+        /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides_file" --max-mm "$K" --score-model "$SCORE_MODEL" --backend gpu --search-backend "$BACKEND" --output "$hits_gpu" >"$log_gpu" 2>&1
+        rc=$?
+        set -e
+        if [[ $rc -eq 0 ]]; then
+          time_gpu_warm=$(cat "$time_gpu_file")
+        else
+          time_gpu_warm="ERR"
+        fi
+      else
+        time_gpu_warm="NA"
       fi
     fi
 

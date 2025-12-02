@@ -127,3 +127,8 @@ hits = eng.score_guides(guides)
 ```
 
 Bundled defaults live under `data/cfd_default.json` and `data/mit_default.json`; supply `--score-table` / `table_path` to override.
+
+### Search backends
+
+- `brute` (default): scans the precomputed protospacer site list; fully supports mismatches (K>0) and is the production path for K>0.
+- `fmi`: FM-index backend for exact search (K=0) only. K>0 via FM is currently disabled in public builds; if requested, the engine will throw. Use `brute` for mismatches.

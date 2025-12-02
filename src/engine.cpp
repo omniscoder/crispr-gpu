@@ -118,10 +118,17 @@ std::vector<SiteRecord> candidate_sites_fm(const GenomeIndex &index, const Engin
 }
 
 std::vector<SiteRecord> candidate_sites(const GenomeIndex &index, const EngineParams &params, const Guide &guide) {
-  if (params.search_backend == SearchBackend::BruteForce) {
-    return candidate_sites_bruteforce(index, params);
+  switch (params.search_backend) {
+    case SearchBackend::BruteForce:
+      return candidate_sites_bruteforce(index, params);
+    case SearchBackend::FMIndex:
+      if (params.max_mismatches > 0) {
+        throw std::runtime_error("FM backend supports K=0 exact search only; use brute backend for mismatches (K>0).");
+      }
+      return candidate_sites_fm(index, params, guide);
+    default:
+      throw std::runtime_error("Unknown search backend");
   }
-  return candidate_sites_fm(index, params, guide);
 }
 
 std::vector<OffTargetHit> run_cpu_engine(const GenomeIndex &index,

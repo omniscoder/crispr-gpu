@@ -64,7 +64,7 @@ static void print_usage() {
   std::cerr << "Usage:\n";
   std::cerr << "  crispr-gpu index --fasta hg38.fa --pam NGG --guide-length 20 --out hg38.idx\n";
   std::cerr << "  crispr-gpu score --index hg38.idx --guides guides.tsv --max-mm 4 --score-model hamming --backend cpu|gpu --output hits.tsv\n";
-  std::cerr << "  crispr-gpu score --search-backend brute|fmi  # FM-index path (WIP)\n";
+  std::cerr << "  crispr-gpu score --search-backend brute|fmi  # fmi = exact K=0 only\n";
   std::cerr << "  crispr-gpu score --score-table table.json  # override MIT/CFD weights\n";
   std::cerr << "  crispr-gpu warmup  # warm CUDA context (no-op if CUDA disabled)\n";
   std::cerr << "  crispr-gpu --version\n";
