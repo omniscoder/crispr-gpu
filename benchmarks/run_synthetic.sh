@@ -30,11 +30,12 @@ if [[ -n "${GUIDE_SWEEP:-}" ]]; then
 else
   GUIDE_LIST=("$GUIDE_COUNT")
 fi
+MAX_MM_VAL=${MAX_MM:-4}
 # K sweep
 if [[ -n "${K_SWEEP:-}" ]]; then
   IFS=',' read -ra K_LIST <<< "$K_SWEEP"
 else
-  K_LIST=(${MAX_MM})
+  K_LIST=(${MAX_MM_VAL})
 fi
 BACKEND="${SEARCH_BACKEND:-brute}"
 SCORE_MODEL="${SCORE_MODEL:-hamming}"
