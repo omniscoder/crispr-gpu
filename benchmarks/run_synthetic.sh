@@ -189,9 +189,14 @@ PY
 done
 
 # Optional CPU regression guard for CI (small scale only, first CPU run)
+# If SKIP_GPU=1 (CPU-only), either set CI_CPU_SLO explicitly or default to skipping the guard.
 if [[ "${CI:-}" != "" && "$BENSCALE" == "small" ]]; then
-  limit="${CI_CPU_SLO:-1.0}"
-  TIME_VAL="$time_cpu" LIMIT_VAL="$limit" python3 - <<'PY'
+  limit_env="${CI_CPU_SLO:-}"
+  if [[ "$SKIP_GPU" == "1" && -z "$limit_env" ]]; then
+    echo "[bench] SKIP_GPU=1 on CI with no CI_CPU_SLO set; skipping CPU SLO guard." >&2
+  else
+    limit="${limit_env:-1.0}"
+    TIME_VAL="$time_cpu" LIMIT_VAL="$limit" python3 - <<'PY'
 import os, sys
 try:
     t=float(os.environ["TIME_VAL"])
@@ -202,6 +207,7 @@ try:
 except Exception:
     sys.exit(0)
 PY
+  fi
 fi
 
 echo "Artifacts in $ROOT"
