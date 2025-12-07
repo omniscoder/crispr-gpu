@@ -16,11 +16,15 @@ Build: Release, CUDA on, warm GPU where noted.
 | GPU | warm | 0.53 | 5.89e7 | 8 |
 
 ## Synthetic genome (50 Mb, 6,246,000 sites), 500 guides
-| Backend | Warmup | Time (s) | CGCT (candidates/s) | Hits |
-| --- | --- | --- | --- | --- |
-| CPU | n/a | 21.32 | 1.46e8 | 1281 |
-| GPU | cold | 2.71 | 1.15e9 | 1281 |
-| GPU | warm | 2.15 | 1.45e9 | 1281 |
+| Backend | Warmup | Time (s) | CGCT (candidates/s) | Hits | Notes |
+| --- | --- | --- | --- | --- | --- |
+| CPU | n/a | 21.32 | 1.46e8 | 1281 | brute, Hamming |
+| GPU | cold | 2.71 | 1.15e9 | 1281 | brute, Hamming |
+| GPU | warm | 2.15 | 1.45e9 | 1281 | brute, Hamming |
+| GPU | warm | 1.64 | 1.90e9 | 1282 | brute, Hamming, direct run |
+| GPU | warm | 1.65 | 1.89e9 | 1282 | brute, CFD, direct run |
+
+The last two rows come from direct GPU runs (no CPU pass) on the same index/guide set; they show the “brag” number for K=4 under Hamming and CFD scoring on this GTX 1060 (~1.9×10⁹ candidates/s).
 
 ### Guide sweep (50 Mb, warm GPU)
 Candidate count scales as 6,246,000 sites × guides.
@@ -37,7 +41,7 @@ Notes:
 - Candidate count = (#sites) × (#guides); hits counted from output rows (header excluded).
 - Warm GPU 500-guide runs show ~±10% variance (1.29e9–1.55e9 cand/s) across repeated runs on the same GTX 1060; numbers above use a representative run.
 - Persistent GPU state + batch scoring improved the 50 Mb / 500 guide warm CGCT from ~1.20e9 (v0.10-bench) to ~1.45e9 (~22% uplift) without kernel changes; this is the brute-force Hamming baseline for future FM-index and DPX work.
-- FM backend: `--search-backend fmi` is supported. FM K=0 is modestly faster on synthetic large cases; FM K>0 is correct but currently unoptimized and should be considered experimental on large genomes (naive SA + DFS).
+- FM backend: `--search-backend fmi` is supported. FM K=0 is modestly faster on synthetic large cases. **FM K>0 is disabled in public builds** (the engine throws if K>0 with FM); use the brute backend for mismatches.
 
 ## How to reproduce
 ```bash
