@@ -1,0 +1,9 @@
+Working dir: /tmp/crisprgpu-bench-4RfTIV
+Genome length: 50000000 bp
+Guides: 500
+
+Results (seconds and CGCT):
+  build_index : 159.29
+
+scale=large backend=brute score_model=hamming K=0 guides=500 candidates=3123000000 cpu_time=344.65 cpu_cgct=9061366.604 gpu_cold_time=155.89 gpu_cold_cgct=20033356.854 gpu_warm_time=150.96 gpu_warm_cgct=20687599.364 hits_cpu=0 hits_gpu=0
+

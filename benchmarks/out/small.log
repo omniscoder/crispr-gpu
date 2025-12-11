@@ -1,0 +1,56 @@
+Working dir: /tmp/crisprgpu-bench-rCfkkE
+Genome length: 5000000 bp
+Guides: 50
+
+Results (seconds and CGCT):
+  build_index : 6.88
+
+scale=small backend=brute score_model=hamming K=0 guides=50 candidates=31224350 cpu_time=6.46 cpu_cgct=4833490.712 gpu_cold_time=7.61 gpu_cold_cgct=4103068.331 gpu_warm_time=8.09 gpu_warm_cgct=3859622.991 hits_cpu=0 hits_gpu=0
+
+scale=small backend=brute score_model=hamming K=1 guides=50 candidates=31224350 cpu_time=5.55 cpu_cgct=5626009.009 gpu_cold_time=9.05 gpu_cold_cgct=3450204.420 gpu_warm_time=9.43 gpu_warm_cgct=3311171.792 hits_cpu=0 hits_gpu=0
+
+scale=small backend=brute score_model=hamming K=2 guides=50 candidates=31224350 cpu_time=6.87 cpu_cgct=4545029.112 gpu_cold_time=7.67 gpu_cold_cgct=4070971.317 gpu_warm_time=7.73 gpu_warm_cgct=4039372.574 hits_cpu=0 hits_gpu=0
+
+scale=small backend=brute score_model=hamming K=4 guides=50 candidates=31224350 cpu_time=6.56 cpu_cgct=4759809.451 gpu_cold_time=7.56 gpu_cold_cgct=4130205.026 gpu_warm_time=8.14 gpu_warm_cgct=3835915.233 hits_cpu=8 hits_gpu=8
+
+Artifacts in /tmp/crisprgpu-bench-rCfkkE
+  logs: /tmp/crisprgpu-bench-rCfkkE/log_build.txt and per-guides logs under /tmp/crisprgpu-bench-rCfkkE
+Working dir: /tmp/crisprgpu-bench-JW3Urb
+Genome length: 5000000 bp
+Guides: 50
+
+Results (seconds and CGCT):
+  build_index : 6.47
+
+scale=small backend=fmi score_model=hamming K=0 guides=50 candidates=31224350 cpu_time=6.07 cpu_cgct=5144044.481 gpu_cold_time=7.56 gpu_cold_cgct=4130205.026 gpu_warm_time=8.81 gpu_warm_cgct=3544194.098 hits_cpu=0 hits_gpu=0
+
+Artifacts in /tmp/crisprgpu-bench-JW3Urb
+  logs: /tmp/crisprgpu-bench-JW3Urb/log_build.txt and per-guides logs under /tmp/crisprgpu-bench-JW3Urb
+Working dir: /tmp/crisprgpu-bench-CfdCtN
+Genome length: 5000000 bp
+Guides: 50
+
+Results (seconds and CGCT):
+  build_index : 9.28
+
+scale=small backend=brute score_model=cfd K=0 guides=50 candidates=31224350 cpu_time=9.05 cpu_cgct=3450204.420 gpu_cold_time=8.66 gpu_cold_cgct=3605583.141 gpu_warm_time=9.01 gpu_warm_cgct=3465521.643 hits_cpu=0 hits_gpu=0
+
+scale=small backend=brute score_model=cfd K=1 guides=50 candidates=31224350 cpu_time=8.28 cpu_cgct=3771056.763 gpu_cold_time=9.02 gpu_cold_cgct=3461679.601 gpu_warm_time=9.04 gpu_warm_cgct=3454021.018 hits_cpu=0 hits_gpu=0
+
+scale=small backend=brute score_model=cfd K=2 guides=50 candidates=31224350 cpu_time=7.74 cpu_cgct=4034153.747 gpu_cold_time=8.06 gpu_cold_cgct=3873988.834 gpu_warm_time=8.60 gpu_warm_cgct=3630738.372 hits_cpu=0 hits_gpu=0
+
+scale=small backend=brute score_model=cfd K=4 guides=50 candidates=31224350 cpu_time=7.42 cpu_cgct=4208133.423 gpu_cold_time=7.62 gpu_cold_cgct=4097683.727 gpu_warm_time=7.63 gpu_warm_cgct=4092313.237 hits_cpu=8 hits_gpu=8
+
+Artifacts in /tmp/crisprgpu-bench-CfdCtN
+  logs: /tmp/crisprgpu-bench-CfdCtN/log_build.txt and per-guides logs under /tmp/crisprgpu-bench-CfdCtN
+Working dir: /tmp/crisprgpu-bench-NuQBVZ
+Genome length: 5000000 bp
+Guides: 50
+
+Results (seconds and CGCT):
+  build_index : 6.57
+
+scale=small backend=fmi score_model=cfd K=0 guides=50 candidates=31224350 cpu_time=6.11 cpu_cgct=5110368.249 gpu_cold_time=7.18 gpu_cold_cgct=4348795.265 gpu_warm_time=7.63 gpu_warm_cgct=4092313.237 hits_cpu=0 hits_gpu=0
+
+Artifacts in /tmp/crisprgpu-bench-NuQBVZ
+  logs: /tmp/crisprgpu-bench-NuQBVZ/log_build.txt and per-guides logs under /tmp/crisprgpu-bench-NuQBVZ
