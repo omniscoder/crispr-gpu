@@ -13,6 +13,7 @@
 #   SEARCH_BACKEND=brute|fmi  (search backend; default brute)
 #   K_SWEEP=0,1,2,4           (optional comma list of K values; overrides MAX_MM)
 #   SCORE_MODEL=hamming|mit|cfd (default hamming)
+#   BENCH_JSONL=path          (append one JSON object per run)
 
 set -euo pipefail
 
@@ -185,6 +186,57 @@ PY
 
     echo "scale=$BENSCALE backend=$BACKEND score_model=$SCORE_MODEL K=$K guides=$guides_cur candidates=$candidates cpu_time=$time_cpu cpu_cgct=$cpu_eps gpu_cold_time=$time_gpu_cold gpu_cold_cgct=$gpu_eps_cold gpu_warm_time=$time_gpu_warm gpu_warm_cgct=$gpu_eps_warm hits_cpu=$hits_cpu_count hits_gpu=$hits_gpu_count"
     echo
+
+    if [[ -n "${BENCH_JSONL:-}" ]]; then
+      BENCH_JSONL_PATH="$BENCH_JSONL" \
+      SCALE="$BENSCALE" SEARCH_BACKEND="$BACKEND" SCORE_MODEL="$SCORE_MODEL" \
+      K="$K" GUIDES="$guides_cur" CANDIDATES="$candidates" SITE_COUNT="$site_count" \
+      CPU_TIME="$time_cpu" CPU_CGCT="$cpu_eps" \
+      GPU_COLD_TIME="$time_gpu_cold" GPU_COLD_CGCT="$gpu_eps_cold" \
+      GPU_WARM_TIME="$time_gpu_warm" GPU_WARM_CGCT="$gpu_eps_warm" \
+      HITS_CPU="$hits_cpu_count" HITS_GPU="$hits_gpu_count" \
+      BUILD_INDEX_TIME="$time_build" \
+      python3 - <<'PY'
+import json, os
+
+def f(key):
+    v = os.environ.get(key, "NA")
+    if v in ("NA", "ERR", "", "None"):
+        return None
+    try:
+        return float(v)
+    except Exception:
+        return None
+
+row = {
+    "tool": "crispr-gpu",
+    "scale": os.environ.get("SCALE"),
+    "search_backend": os.environ.get("SEARCH_BACKEND"),
+    "score_model": os.environ.get("SCORE_MODEL"),
+    "k": int(os.environ.get("K", "0")),
+    "guides": int(os.environ.get("GUIDES", "0")),
+    "site_count": int(os.environ.get("SITE_COUNT", "0")),
+    "candidates": int(os.environ.get("CANDIDATES", "0")),
+    "timing_sec": {
+        "build_index": f("BUILD_INDEX_TIME"),
+        "cpu": f("CPU_TIME"),
+        "gpu_cold": f("GPU_COLD_TIME"),
+        "gpu_warm": f("GPU_WARM_TIME"),
+    },
+    "cgct_candidates_per_sec": {
+        "cpu": f("CPU_CGCT"),
+        "gpu_cold": f("GPU_COLD_CGCT"),
+        "gpu_warm": f("GPU_WARM_CGCT"),
+    },
+    "hits": {
+        "cpu": int(os.environ.get("HITS_CPU", "0")),
+        "gpu": int(os.environ.get("HITS_GPU", "0")),
+    },
+}
+with open(os.environ["BENCH_JSONL_PATH"], "a") as out:
+    out.write(json.dumps(row) + "\n")
+PY
+    fi
   done
 done
 

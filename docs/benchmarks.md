@@ -59,14 +59,18 @@ BENCH_SCALE=large CRISPR_GPU_WARMUP=1 ./benchmarks/run_synthetic.sh
 
 # Guide sweep (50 and 500 guides):
 GUIDE_SWEEP=50,500 ./benchmarks/run_synthetic.sh
+
+# Machine-readable logging (one JSON object per run):
+BENCH_JSONL=synthetic_runs.jsonl BENCH_SCALE=large CRISPR_GPU_WARMUP=1 ./benchmarks/run_synthetic.sh
 ```
 
 ## Kernel microbench (device-only)
-Standalone device benchmark for the Hamming kernel (no host/index overhead):
+Standalone device benchmark for the Hamming mismatch-count kernel (no host/index overhead):
 ```bash
 cmake --build build -j --target kernel_microbench
-./build/kernel_microbench
+./build/kernel_microbench --format kv
+./build/kernel_microbench --format json --output kernel_microbench.json
 ```
-Configuration: grid 24,399, block 256, candidates 6.246e6, max_mm=4.
-Latest result (GTX 1060): 2.01e9 candidates/s in 0.003107 s (single-guide scan of the 50 Mb index size).
-Outputs `cgct_candidates_per_sec` for direct GPU throughput inspection.
+Key knobs:
+- `--hit-fraction` (default 0.0): fraction of sites that are exact matches (mm=0). Use `1.0` to include worst-case atomic/hit-write overhead.
+- `--iters` / `--warmup`: stabilize timing; `cgct_candidates_per_sec` is computed from mean kernel time.
