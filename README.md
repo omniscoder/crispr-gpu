@@ -66,7 +66,9 @@ pip install .
 ## Docs
 - docs/getting_started.md
 - docs/cfd_tables.md
-- docs/benchmarks.md (skeleton)
+- docs/benchmarks.md
+- docs/methods.md
+- docs/reproducibility.md
 
 ## Synthetic Benchmark (quick sanity)
 Synthetic genome, NGG, guide length 20, K=4, Hamming, 50 random guides.

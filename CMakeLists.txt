@@ -87,6 +87,7 @@ endif()
 if(CRISPR_GPU_BUILD_CLI)
   add_executable(crispr-gpu src/cli_main.cpp)
   target_link_libraries(crispr-gpu PRIVATE crispr_gpu)
+  install(TARGETS crispr-gpu RUNTIME DESTINATION bin)
 endif()
 
 # Kernel microbenchmark (developer aid)
@@ -116,6 +117,7 @@ install(TARGETS crispr_gpu
   INCLUDES DESTINATION include)
 install(TARGETS nlohmann_json EXPORT CrisprGpuTargets)
 install(DIRECTORY include/ DESTINATION include)
+install(DIRECTORY data/ DESTINATION share/crispr_gpu FILES_MATCHING PATTERN "*.json")
 
 install(EXPORT CrisprGpuTargets
   FILE CrisprGpuTargets.cmake

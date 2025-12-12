@@ -24,7 +24,7 @@ public:
   ~OffTargetEngine();
 
   std::vector<OffTargetHit> score_guide(const Guide &guide) const;
-std::vector<OffTargetHit> score_guides(const std::vector<Guide> &guides) const;
+  std::vector<OffTargetHit> score_guides(const std::vector<Guide> &guides) const;
 
 private:
   const GenomeIndex &index_;

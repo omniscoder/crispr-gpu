@@ -13,8 +13,8 @@ cmake --build build
 
 ## Run CLI
 ```bash
-./build/bin/crispr-gpu index --fasta hg38.fa --pam NGG --guide-length 20 --out hg38.idx
-./build/bin/crispr-gpu score --index hg38.idx --guides guides.tsv --max-mm 4 --score-model hamming --output hits.tsv
+./build/crispr-gpu index --fasta hg38.fa --pam NGG --guide-length 20 --out hg38.idx
+./build/crispr-gpu score --index hg38.idx --guides guides.tsv --max-mm 4 --score-model hamming --output hits.tsv
 ```
 
 ## Python

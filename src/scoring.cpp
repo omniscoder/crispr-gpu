@@ -63,6 +63,9 @@ void load_mit_tables(const std::string &json_path) {
 static std::string default_cfd_path() {
   const char *fname = "cfd_default.json";
   std::vector<std::string> candidates;
+  if (const char *env = std::getenv("CRISPR_GPU_DATA_DIR")) {
+    if (env[0]) candidates.push_back(std::string(env) + "/" + fname);
+  }
 #ifdef CRISPR_GPU_DATA_DIR
   candidates.push_back(std::string(CRISPR_GPU_DATA_DIR) + "/" + fname);
 #endif
@@ -79,6 +82,9 @@ static std::string default_cfd_path() {
 static std::string default_mit_path() {
   const char *fname = "mit_default.json";
   std::vector<std::string> candidates;
+  if (const char *env = std::getenv("CRISPR_GPU_DATA_DIR")) {
+    if (env[0]) candidates.push_back(std::string(env) + "/" + fname);
+  }
 #ifdef CRISPR_GPU_DATA_DIR
   candidates.push_back(std::string(CRISPR_GPU_DATA_DIR) + "/" + fname);
 #endif
