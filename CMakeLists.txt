@@ -79,14 +79,14 @@ if(CRISPR_GPU_ENABLE_CUDA)
   target_include_directories(crispr_gpu PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
   # Default to a reasonable arch; allow user override via CMAKE_CUDA_ARCHITECTURES
   if(NOT CMAKE_CUDA_ARCHITECTURES)
-    set_target_properties(crispr_gpu PROPERTIES CUDA_ARCHITECTURES "60;70;75;80")
+    set_target_properties(crispr_gpu PROPERTIES CUDA_ARCHITECTURES "60;61;70;75;80;86")
   endif()
 endif()
 
 # CLI
 if(CRISPR_GPU_BUILD_CLI)
   add_executable(crispr-gpu src/cli_main.cpp)
-  target_link_libraries(crispr-gpu PRIVATE crispr_gpu)
+  target_link_libraries(crispr-gpu PRIVATE crispr_gpu nlohmann_json::nlohmann_json)
   install(TARGETS crispr-gpu RUNTIME DESTINATION bin)
 endif()
 

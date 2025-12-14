@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omniscoder.github.io/crispr-gpu/schemas/score_result.v1.json",
+  "title": "crispr-gpu score result (v1)",
+  "type": "object",
+  "required": ["schema", "schema_version", "tool", "params", "index", "input", "hits", "summary"],
+  "properties": {
+    "schema": { "const": "crispr-gpu/score_result/v1" },
+    "schema_version": { "const": 1 },
+    "tool": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "const": "crispr-gpu" },
+        "version": { "type": "string" },
+        "cuda_enabled": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "params": {
+      "type": "object",
+      "required": ["backend", "search_backend", "score_model", "max_mm", "sorted"],
+      "properties": {
+        "backend": { "enum": ["cpu", "gpu"] },
+        "search_backend": { "enum": ["brute", "fmi"] },
+        "score_model": { "enum": ["hamming", "mit", "cfd"] },
+        "max_mm": { "type": "integer", "minimum": 0 },
+        "score_table": { "type": ["string", "null"] },
+        "sorted": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "index": {
+      "type": "object",
+      "required": ["path", "guide_length", "pam", "both_strands", "num_sites", "num_chromosomes"],
+      "properties": {
+        "path": { "type": "string" },
+        "guide_length": { "type": "integer", "minimum": 1, "maximum": 32 },
+        "pam": { "type": "string" },
+        "both_strands": { "type": "boolean" },
+        "num_sites": { "type": "integer", "minimum": 0 },
+        "num_chromosomes": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "input": {
+      "type": "object",
+      "required": ["guides_path", "num_guides"],
+      "properties": {
+        "guides_path": { "type": "string" },
+        "num_guides": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "hits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["guide", "chrom", "pos", "strand", "mismatches", "score"],
+        "properties": {
+          "guide": { "type": "string" },
+          "chrom": { "type": "string" },
+          "pos": { "type": "integer", "minimum": 0 },
+          "strand": { "enum": ["+", "-"] },
+          "mismatches": { "type": "integer", "minimum": 0, "maximum": 32 },
+          "score": { "type": "number" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["num_hits"],
+      "properties": {
+        "num_hits": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
+

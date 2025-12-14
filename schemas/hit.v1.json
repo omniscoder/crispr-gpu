@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omniscoder.github.io/crispr-gpu/schemas/hit.v1.json",
+  "title": "crispr-gpu hit record (v1)",
+  "type": "object",
+  "required": ["schema", "schema_version", "guide", "chrom", "pos", "strand", "mismatches", "score"],
+  "properties": {
+    "schema": { "const": "crispr-gpu/hit/v1" },
+    "schema_version": { "const": 1 },
+    "guide": { "type": "string" },
+    "chrom": { "type": "string" },
+    "pos": { "type": "integer", "minimum": 0 },
+    "strand": { "enum": ["+", "-"] },
+    "mismatches": { "type": "integer", "minimum": 0, "maximum": 32 },
+    "score": { "type": "number" }
+  },
+  "additionalProperties": false
+}
+
