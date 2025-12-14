@@ -244,8 +244,9 @@ def run_synthetic_bench(
     env["CRISPR_GPU_WARMUP"] = "1" if gpu_ok else "0"
     env["SKIP_GPU"] = "0" if gpu_ok else "1"
     if quick:
-        env["GENOME_LEN"] = "10000"
-        env["GUIDE_COUNT"] = "1"
+        # Keep small enough for CI/docker but large enough to avoid /usr/bin/time rounding to 0.00s.
+        env["GENOME_LEN"] = "100000"
+        env["GUIDE_COUNT"] = "10"
 
     script = REPO_ROOT / "benchmarks" / "run_synthetic.sh"
     rc, out, err, _ = run_cmd([str(script)], cwd=REPO_ROOT, env=env)
