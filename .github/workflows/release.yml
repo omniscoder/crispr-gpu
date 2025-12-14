@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install build
+      - run: pip install build jsonschema
       - name: Build sdist only (CPU-only to avoid CUDA dependency)
         run: python -m build --sdist
         env:
@@ -34,6 +34,7 @@ jobs:
         run: |
           export PATH="$PWD/build_cli:$PATH"
           python3 scripts/artifact_run.py --out-dir sample_bundle --quick --skip-gpu --redact
+          python3 scripts/validate_artifacts.py sample_bundle
           mkdir -p release_assets
           cp sample_bundle/report.json "release_assets/crispr-gpu-${{ github.ref_name }}-report.json"
           cp sample_bundle/report.md "release_assets/crispr-gpu-${{ github.ref_name }}-report.md"
