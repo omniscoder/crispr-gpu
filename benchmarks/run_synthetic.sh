@@ -96,12 +96,13 @@ site_count=${site_count:-0}
 
 gpu_available=0
 if [[ ${SKIP_GPU:-0} -eq 0 ]]; then
-  python3 - <<'PY' >/dev/null 2>&1 || true
+  if python3 - <<'PY' >/dev/null 2>&1; then
 import crispr_gpu as cg
 import sys
 sys.exit(0 if cg.cuda_available() else 1)
 PY
-  [[ $? -eq 0 ]] && gpu_available=1
+    gpu_available=1
+  fi
 fi
 
 echo

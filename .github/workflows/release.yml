@@ -22,10 +22,32 @@ jobs:
         run: python -m build --sdist
         env:
           SKBUILD_CONFIGURE_OPTIONS: "-DCRISPR_GPU_ENABLE_CUDA=OFF"
+      - name: Build CPU CLI (for sample bundle)
+        run: |
+          cmake -B build_cli -S . \
+            -DCRISPR_GPU_ENABLE_CUDA=OFF \
+            -DCRISPR_GPU_BUILD_PYTHON=OFF \
+            -DCRISPR_GPU_ENABLE_TESTS=OFF \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build_cli --config Release
+      - name: Generate sample artifact bundle (CPU-only)
+        run: |
+          export PATH="$PWD/build_cli:$PATH"
+          python3 scripts/artifact_run.py --out-dir sample_bundle --quick --skip-gpu --redact
+          mkdir -p release_assets
+          cp sample_bundle/report.json "release_assets/crispr-gpu-${{ github.ref_name }}-report.json"
+          cp sample_bundle/report.md "release_assets/crispr-gpu-${{ github.ref_name }}-report.md"
+          cp sample_bundle/demo/score_cpu.json "release_assets/crispr-gpu-${{ github.ref_name }}-score_cpu.json"
+          cp sample_bundle/bench_synthetic.jsonl "release_assets/crispr-gpu-${{ github.ref_name }}-bench_synthetic.jsonl"
+          tar -czf "release_assets/crispr-gpu-${{ github.ref_name }}-sample-bundle.tar.gz" -C sample_bundle .
       - uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release_assets
+          path: release_assets/*
 
   publish-pypi:
     needs: build
@@ -55,10 +77,16 @@ jobs:
         with:
           name: dist
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: release_assets
+          path: release_assets
       - name: Create GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/*
+          files: |
+            dist/*
+            release_assets/*
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           draft: false
