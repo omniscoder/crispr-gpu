@@ -62,6 +62,7 @@ BENCH_JSONL=synthetic_runs.jsonl BENCH_SCALE=large CRISPR_GPU_WARMUP=1 ./benchma
 ```
 
 `synthetic_runs.jsonl` is JSONL (one JSON object per configuration).
+The schema is versioned (`crispr-gpu/bench_run/v1`); see `schemas/bench_run.v1.json`.
 
 ## Kernel microbenchmark (device-only)
 
@@ -77,3 +78,14 @@ Knobs:
 - `--hit-fraction`: controls how many candidates pass the mismatch filter (affects atomic/write pressure).
 - `--iters` / `--warmup`: stabilize timing for reporting.
 
+## End-to-end artifact report
+
+Runs a deterministic toy demo plus synthetic benchmark(s) and writes a versioned report bundle:
+
+```bash
+python3 scripts/artifact_run.py --out-dir reports/latest --quick
+```
+
+Output files:
+- `reports/latest/report.json` (schema: `schemas/report.v1.json`)
+- `reports/latest/report.md`

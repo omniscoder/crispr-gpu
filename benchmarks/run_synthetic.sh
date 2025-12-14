@@ -16,6 +16,9 @@
 #   BENCH_JSONL=path          (append one JSON object per run)
 
 set -euo pipefail
+export LC_ALL=C
+export LANG=C
+export PYTHONHASHSEED=0
 
 ROOT="$(mktemp -d /tmp/crisprgpu-bench-XXXXXX)"
 export ROOT
@@ -50,7 +53,16 @@ GUIDE_LEN=20
 export GENOME_LEN GUIDE_COUNT
 
 echo "Working dir: $ROOT"
-export PYTHONPATH="${PYTHONPATH:-}:$(pwd)/build"
+export PYTHONPATH="${PYTHONPATH:-}:$(pwd)/build:$(pwd)/build/python"
+
+CRISPR_GPU_CLI="${CRISPR_GPU_BIN:-}"
+if [[ -z "$CRISPR_GPU_CLI" ]]; then
+  if [[ -x "./build/crispr-gpu" ]]; then
+    CRISPR_GPU_CLI="./build/crispr-gpu"
+  else
+    CRISPR_GPU_CLI="crispr-gpu"
+  fi
+fi
 
 genome="$ROOT/genome.fa"
 guides_max="$ROOT/guides_max.tsv"
@@ -58,7 +70,8 @@ index="$ROOT/genome.idx"
 
 python3 - <<PY
 import random, pathlib, os
-random.seed(0)
+SEED = 0
+random.seed(SEED)
 root = pathlib.Path(os.environ.get("ROOT"))
 length = int(os.environ.get("GENOME_LEN", "5000000"))
 G = int(os.environ.get("MAX_GUIDES", "50"))
@@ -76,9 +89,10 @@ echo "Guides: $GUIDE_COUNT"
 log_build="$ROOT/log_build.txt"
 time_build_file="$ROOT/time_build.txt"
 
-time_build=$( /usr/bin/time -f "%e" -o "$time_build_file" ./build/crispr-gpu index --fasta "$genome" --pam NGG --guide-length $GUIDE_LEN --out "$index" >"$log_build" 2>&1 || true; cat "$time_build_file" )
+time_build=$( /usr/bin/time -f "%e" -o "$time_build_file" "$CRISPR_GPU_CLI" index --fasta "$genome" --pam NGG --guide-length $GUIDE_LEN --out "$index" >"$log_build" 2>&1 || true; cat "$time_build_file" )
 
-site_count=$(grep -oE 'with ([0-9]+) sites' "$log_build" | awk '{print $2}')
+site_count=$(grep -oE 'with ([0-9]+) sites' "$log_build" | awk '{print $2}' || true)
+site_count=${site_count:-0}
 
 gpu_available=0
 if [[ ${SKIP_GPU:-0} -eq 0 ]]; then
@@ -109,14 +123,14 @@ for guides_cur in "${GUIDE_LIST[@]}"; do
     hits_cpu="$ROOT/hits_cpu_${guides_cur}_k${K}.tsv"
     hits_gpu="$ROOT/hits_gpu_${guides_cur}_k${K}.tsv"
 
-    time_cpu=$( /usr/bin/time -f "%e" -o "$time_cpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides_file" --max-mm "$K" --score-model "$SCORE_MODEL" --backend cpu --search-backend "$BACKEND" --output "$hits_cpu" >"$log_cpu" 2>&1 || true; cat "$time_cpu_file" )
+    time_cpu=$( /usr/bin/time -f "%e" -o "$time_cpu_file" env CRISPR_GPU_TIMING=1 "$CRISPR_GPU_CLI" score --index "$index" --guides "$guides_file" --max-mm "$K" --score-model "$SCORE_MODEL" --backend cpu --search-backend "$BACKEND" --output "$hits_cpu" >"$log_cpu" 2>&1 || true; cat "$time_cpu_file" )
     time_gpu_cold="NA"
     time_gpu_warm="NA"
 
     if [[ $gpu_available -eq 1 ]]; then
       # cold run
       set +e
-      /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides_file" --max-mm "$K" --score-model "$SCORE_MODEL" --backend gpu --search-backend "$BACKEND" --output "$hits_gpu" >"$log_gpu" 2>&1
+      /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 "$CRISPR_GPU_CLI" score --index "$index" --guides "$guides_file" --max-mm "$K" --score-model "$SCORE_MODEL" --backend gpu --search-backend "$BACKEND" --output "$hits_gpu" >"$log_gpu" 2>&1
       rc=$?
       set -e
       if [[ $rc -eq 0 ]]; then
@@ -126,9 +140,9 @@ for guides_cur in "${GUIDE_LIST[@]}"; do
       fi
       # warm run (optional)
       if [[ ${CRISPR_GPU_WARMUP:-0} -ne 0 ]]; then
-        ./build/crispr-gpu warmup >/dev/null 2>&1 || true
+        "$CRISPR_GPU_CLI" warmup >/dev/null 2>&1 || true
         set +e
-        /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 ./build/crispr-gpu score --index "$index" --guides "$guides_file" --max-mm "$K" --score-model "$SCORE_MODEL" --backend gpu --search-backend "$BACKEND" --output "$hits_gpu" >"$log_gpu" 2>&1
+        /usr/bin/time -f "%e" -o "$time_gpu_file" env CRISPR_GPU_TIMING=1 "$CRISPR_GPU_CLI" score --index "$index" --guides "$guides_file" --max-mm "$K" --score-model "$SCORE_MODEL" --backend gpu --search-backend "$BACKEND" --output "$hits_gpu" >"$log_gpu" 2>&1
         rc=$?
         set -e
         if [[ $rc -eq 0 ]]; then
@@ -196,8 +210,10 @@ PY
       GPU_WARM_TIME="$time_gpu_warm" GPU_WARM_CGCT="$gpu_eps_warm" \
       HITS_CPU="$hits_cpu_count" HITS_GPU="$hits_gpu_count" \
       BUILD_INDEX_TIME="$time_build" \
+      GENOME_LEN_BP="$GENOME_LEN" GUIDE_LEN="$GUIDE_LEN" SEED="0" \
       python3 - <<'PY'
 import json, os
+from datetime import datetime, timezone
 
 def f(key):
     v = os.environ.get(key, "NA")
@@ -209,14 +225,25 @@ def f(key):
         return None
 
 row = {
+    "schema": "crispr-gpu/bench_run/v1",
+    "schema_version": 1,
     "tool": "crispr-gpu",
-    "scale": os.environ.get("SCALE"),
-    "search_backend": os.environ.get("SEARCH_BACKEND"),
-    "score_model": os.environ.get("SCORE_MODEL"),
-    "k": int(os.environ.get("K", "0")),
-    "guides": int(os.environ.get("GUIDES", "0")),
-    "site_count": int(os.environ.get("SITE_COUNT", "0")),
-    "candidates": int(os.environ.get("CANDIDATES", "0")),
+    "bench": "synthetic",
+    "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+    "params": {
+        "scale": os.environ.get("SCALE"),
+        "genome_len_bp": int(os.environ.get("GENOME_LEN_BP", "0")),
+        "guide_len": int(os.environ.get("GUIDE_LEN", "0")),
+        "seed": int(os.environ.get("SEED", "0")),
+        "guides": int(os.environ.get("GUIDES", "0")),
+        "k": int(os.environ.get("K", "0")),
+        "search_backend": os.environ.get("SEARCH_BACKEND"),
+        "score_model": os.environ.get("SCORE_MODEL"),
+    },
+    "derived": {
+        "site_count": int(os.environ.get("SITE_COUNT", "0")),
+        "candidates": int(os.environ.get("CANDIDATES", "0")),
+    },
     "timing_sec": {
         "build_index": f("BUILD_INDEX_TIME"),
         "cpu": f("CPU_TIME"),
@@ -234,7 +261,7 @@ row = {
     },
 }
 with open(os.environ["BENCH_JSONL_PATH"], "a") as out:
-    out.write(json.dumps(row) + "\n")
+    out.write(json.dumps(row, sort_keys=True) + "\n")
 PY
     fi
   done

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omniscoder.github.io/crispr-gpu/schemas/bench_run.v1.json",
+  "title": "crispr-gpu benchmark run (v1)",
+  "type": "object",
+  "required": [
+    "schema",
+    "schema_version",
+    "tool",
+    "bench",
+    "params",
+    "derived",
+    "timing_sec",
+    "cgct_candidates_per_sec",
+    "hits"
+  ],
+  "properties": {
+    "schema": { "const": "crispr-gpu/bench_run/v1" },
+    "schema_version": { "const": 1 },
+    "tool": { "const": "crispr-gpu" },
+    "bench": { "enum": ["synthetic"] },
+    "generated_at_utc": { "type": ["string", "null"] },
+    "params": {
+      "type": "object",
+      "required": [
+        "scale",
+        "genome_len_bp",
+        "guide_len",
+        "seed",
+        "guides",
+        "k",
+        "search_backend",
+        "score_model"
+      ],
+      "properties": {
+        "scale": { "enum": ["small", "large"] },
+        "genome_len_bp": { "type": "integer", "minimum": 1 },
+        "guide_len": { "type": "integer", "minimum": 1 },
+        "seed": { "type": "integer" },
+        "guides": { "type": "integer", "minimum": 0 },
+        "k": { "type": "integer", "minimum": 0 },
+        "search_backend": { "enum": ["brute", "fmi"] },
+        "score_model": { "enum": ["hamming", "mit", "cfd"] }
+      },
+      "additionalProperties": true
+    },
+    "derived": {
+      "type": "object",
+      "required": ["site_count", "candidates"],
+      "properties": {
+        "site_count": { "type": "integer", "minimum": 0 },
+        "candidates": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "timing_sec": {
+      "type": "object",
+      "required": ["build_index", "cpu", "gpu_cold", "gpu_warm"],
+      "properties": {
+        "build_index": { "type": ["number", "null"] },
+        "cpu": { "type": ["number", "null"] },
+        "gpu_cold": { "type": ["number", "null"] },
+        "gpu_warm": { "type": ["number", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "cgct_candidates_per_sec": {
+      "type": "object",
+      "required": ["cpu", "gpu_cold", "gpu_warm"],
+      "properties": {
+        "cpu": { "type": ["number", "null"] },
+        "gpu_cold": { "type": ["number", "null"] },
+        "gpu_warm": { "type": ["number", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "hits": {
+      "type": "object",
+      "required": ["cpu", "gpu"],
+      "properties": {
+        "cpu": { "type": "integer", "minimum": 0 },
+        "gpu": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}
+

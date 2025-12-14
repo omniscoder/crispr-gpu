@@ -64,6 +64,8 @@ GUIDE_SWEEP=50,500 ./benchmarks/run_synthetic.sh
 BENCH_JSONL=synthetic_runs.jsonl BENCH_SCALE=large CRISPR_GPU_WARMUP=1 ./benchmarks/run_synthetic.sh
 ```
 
+The JSONL schema is versioned; see `schemas/bench_run.v1.json`.
+
 ## Kernel microbench (device-only)
 Standalone device benchmark for the Hamming mismatch-count kernel (no host/index overhead):
 ```bash
