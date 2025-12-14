@@ -1,0 +1,11 @@
+.git
+.github
+build
+build*
+reports/latest
+__pycache__
+**/__pycache__
+*.pyc
+.vscode
+.idea
+

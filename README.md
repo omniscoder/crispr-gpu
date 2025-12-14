@@ -69,6 +69,7 @@ pip install .
 - docs/benchmarks.md
 - docs/methods.md
 - docs/reproducibility.md
+- docs/schemas.md
 
 ## Synthetic Benchmark (quick sanity)
 Synthetic genome, NGG, guide length 20, K=4, Hamming, 50 random guides.
@@ -89,6 +90,28 @@ cmake --build build -j
 CRISPR_GPU_WARMUP=1 ./benchmarks/run_synthetic.sh   # warm GPU timing
 BENCH_SCALE=large ./benchmarks/run_synthetic.sh     # 50 Mb genome
 ```
+
+## End-to-end demo + report (stable JSON)
+
+Generates a deterministic demo run, a synthetic benchmark JSONL, and a versioned report bundle:
+
+```bash
+python3 scripts/artifact_run.py --out-dir reports/latest --quick
+```
+
+Demo-only:
+```bash
+python3 scripts/artifact_run.py --out-dir reports/latest --mode demo --quick
+```
+
+Schemas:
+- `schemas/score_result.v1.json`
+- `schemas/bench_run.v1.json`
+- `schemas/report.v1.json`
+
+## Docker
+
+See `docker/README.md` for CPU and CUDA images that run the demo + benchmarks and emit `/out/report.json`.
 
 ## Version
 0.1.0
