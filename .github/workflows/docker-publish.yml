@@ -52,7 +52,11 @@ jobs:
         run: |
           set -euo pipefail
           ref_in="${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref_name }}"
-          want_latest="${{ github.event_name == 'workflow_dispatch' && inputs.publish_latest || 'true' }}"
+
+          want_latest="true"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            want_latest="${{ inputs.publish_latest }}"
+          fi
 
           tag="$ref_in"
           if [[ "$tag" =~ ^refs/tags/(.+)$ ]]; then tag="${BASH_REMATCH[1]}"; fi
@@ -93,8 +97,12 @@ jobs:
             exit 0
           fi
 
-          if docker buildx imagetools inspect "${image}:${tag}" >/dev/null 2>&1; then
-            digest="$(docker buildx imagetools inspect "${image}:${tag}" --format '{{.Digest}}')"
+          if out="$(docker buildx imagetools inspect "${image}:${tag}" 2>/dev/null)"; then
+            digest="$(printf '%s\n' "$out" | awk -F': ' '/^Digest:/ {print $2; exit}')"
+            if [[ -z "$digest" ]]; then
+              echo "Unable to parse digest for ${image}:${tag}" >&2
+              exit 1
+            fi
             echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "digest=$digest" >> "$GITHUB_OUTPUT"
           else
