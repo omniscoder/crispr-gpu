@@ -118,6 +118,10 @@ Schemas:
   ```bash
   python3 scripts/artifact_run.py --out-dir reports/latest --quick --skip-gpu --redact
   ```
+- Verify (run + schema validation, one line):
+  ```bash
+  python3 -m pip install -q jsonschema && python3 scripts/artifact_run.py --out-dir reports/latest --quick --skip-gpu --redact && python3 scripts/validate_artifacts.py reports/latest
+  ```
 - Guarantees: deterministic outputs with schema-versioned JSON/JSONL; v1 schemas are additive-only and breaking changes land as v2 side-by-side (details: `docs/reproducibility.md`).
 
 ## Docker

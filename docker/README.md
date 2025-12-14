@@ -2,6 +2,11 @@
 
 These images are intended for artifact evaluation: run a deterministic demo + synthetic benchmark and emit a versioned report bundle.
 
+## Published images (GHCR)
+
+- CPU (stable releases): `ghcr.io/omniscoder/crispr-gpu-cpu:vX.Y.Z`
+- CPU (newest stable): `ghcr.io/omniscoder/crispr-gpu-cpu:latest`
+
 ## CPU image
 
 Build:
@@ -31,4 +36,3 @@ docker run --rm --gpus all -v "$(pwd)/reports_docker:/out" crispr-gpu:cuda
 Outputs:
 - `/out/report.json` (schema: `schemas/report.v1.json`)
 - `/out/report.md`
-

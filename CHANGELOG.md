@@ -1,5 +1,10 @@
 # Changelog
 
+## Compatibility
+- Schema contracts are versioned and declared in outputs (`schema`, `schema_version`).
+- As of `v0.2.0` (2025-12-14), the following schemas are frozen at v1: `report.v1`, `score_result.v1`, `bench_run.v1`, `hit.v1`.
+- “Additive-only within v1” means: new optional fields may be added, but existing fields are never removed/renamed and their semantics do not change; breaking changes land as v2 side-by-side.
+
 ## 0.2.0 - 2025-12-14
 - Frozen, versioned output contracts: `report.v1`, `score_result.v1`, `bench_run.v1`, `hit.v1`
 - Deterministic artifact bundle runner: `scripts/artifact_run.py` (demo + benchmarks + report)
