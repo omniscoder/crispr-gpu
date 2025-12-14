@@ -3,9 +3,9 @@ title: "crispr-gpu"
 type: software
 authors:
   - family-names: "crispr-gpu contributors"
-version: "0.1.0"
+version: "0.2.0"
 license: MIT
-date-released: 2025-11-29
+date-released: 2025-12-14
 message: "Please cite this software if you use it."
 repository-code: "https://github.com/omniscoder/crispr-gpu"
 url: "https://github.com/omniscoder/crispr-gpu"

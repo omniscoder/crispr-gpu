@@ -111,12 +111,21 @@ Schemas:
 - `schemas/bench_run.v1.json`
 - `schemas/report.v1.json`
 
+## How to cite and reproduce
+
+- Cite: see `CITATION.cff`.
+- Reproduce (CPU-only, publishable bundle):
+  ```bash
+  python3 scripts/artifact_run.py --out-dir reports/latest --quick --skip-gpu --redact
+  ```
+- Guarantees: deterministic outputs with schema-versioned JSON/JSONL; v1 schemas are additive-only and breaking changes land as v2 side-by-side (details: `docs/reproducibility.md`).
+
 ## Docker
 
 See `docker/README.md` for CPU and CUDA images that run the demo + benchmarks and emit `/out/report.json`.
 
 ## Version
-0.1.0
+0.2.0
 
 ## License
 MIT

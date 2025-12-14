@@ -48,6 +48,42 @@ def _normalize_report_for_golden(doc: dict) -> dict:
     return d
 
 
+def _normalize_score_result_for_golden(doc: dict) -> dict:
+    d = copy.deepcopy(doc)
+
+    # Tool metadata varies by build config and release version.
+    if isinstance(d.get("tool"), dict):
+        d["tool"] = {}
+
+    # Absolute paths vary by machine/tmpdir; preserve only the stable tail.
+    inp = d.get("input")
+    if isinstance(inp, dict) and isinstance(inp.get("guides_path"), str):
+        parts = inp["guides_path"].replace("\\", "/").split("/")
+        if len(parts) >= 2:
+            inp["guides_path"] = "/".join(parts[-2:])
+
+    idx = d.get("index")
+    if isinstance(idx, dict) and isinstance(idx.get("path"), str):
+        parts = idx["path"].replace("\\", "/").split("/")
+        if len(parts) >= 2:
+            idx["path"] = "/".join(parts[-2:])
+
+    return d
+
+
+def _normalize_bench_row_for_golden(doc: dict) -> dict:
+    d = copy.deepcopy(doc)
+    d.pop("generated_at_utc", None)
+
+    # Machine-dependent timings/throughput.
+    if "timing_sec" in d:
+        d["timing_sec"] = {}
+    if "cgct_candidates_per_sec" in d:
+        d["cgct_candidates_per_sec"] = {}
+
+    return d
+
+
 def test_artifact_run_golden_report(tmp_path):
     jsonschema = pytest.importorskip("jsonschema")
 
@@ -112,3 +148,15 @@ def test_artifact_run_golden_report(tmp_path):
 
     assert _normalize_report_for_golden(report) == _normalize_report_for_golden(golden)
 
+    golden_cpu_score = _load_json(repo_root / "reports" / "sample" / "demo" / "score_cpu.json")
+    assert _normalize_score_result_for_golden(cpu_score) == _normalize_score_result_for_golden(golden_cpu_score)
+
+    golden_bench_rows = []
+    for line in (repo_root / "reports" / "sample" / "bench_synthetic.jsonl").read_text().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        golden_bench_rows.append(json.loads(line))
+    assert [_normalize_bench_row_for_golden(r) for r in bench_rows] == [
+        _normalize_bench_row_for_golden(r) for r in golden_bench_rows
+    ]

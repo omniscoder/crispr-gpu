@@ -1,4 +1,4 @@
-Working dir: /tmp/crisprgpu-bench-Hnmq6u
+Working dir: /tmp/crisprgpu-bench-T9ITqI
 Genome length: 100000 bp
 Guides: 10
 
@@ -7,5 +7,5 @@ Results (seconds and CGCT):
 
 scale=small backend=brute score_model=hamming K=4 guides=10 candidates=126940 cpu_time=0.05 cpu_cgct=2538800.000 gpu_cold_time=NA gpu_cold_cgct=NA gpu_warm_time=NA gpu_warm_cgct=NA hits_cpu=0 hits_gpu=0
 
-Artifacts in /tmp/crisprgpu-bench-Hnmq6u
-  logs: /tmp/crisprgpu-bench-Hnmq6u/log_build.txt and per-guides logs under /tmp/crisprgpu-bench-Hnmq6u
+Artifacts in /tmp/crisprgpu-bench-T9ITqI
+  logs: /tmp/crisprgpu-bench-T9ITqI/log_build.txt and per-guides logs under /tmp/crisprgpu-bench-T9ITqI

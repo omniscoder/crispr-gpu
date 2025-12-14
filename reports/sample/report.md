@@ -1,7 +1,7 @@
 # crispr-gpu artifact report (v1)
 
-- Generated (UTC): `2025-12-14T02:17:13+00:00`
-- Git: `v0.2.0-fm-baseline-18-g7bfa020`
+- Generated (UTC): `2025-12-14T03:48:28+00:00`
+- Git: `v0.2.0-fm-baseline-19-g1bd4f79-dirty`
 - Platform: `Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39`
 - Python: `3.12.3 (main, Nov  6 2025, 13:44:16) [GCC 13.3.0]`
 - NVCC: present
@@ -12,7 +12,7 @@
 - Index: `demo/demo.idx`
 - Guides: `demo/demo_guides.tsv`
 - CPU result: `demo/score_cpu.json`
-- Timings (sec): `{'index_build': 0.007896008000898291, 'score_cpu': 0.0028552990006573964}`
+- Timings (sec): `{'index_build': 0.0022055269982956816, 'score_cpu': 0.002231694001238793}`
 
 ## Benchmarks
 

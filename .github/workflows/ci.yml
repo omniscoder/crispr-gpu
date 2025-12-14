@@ -25,3 +25,20 @@ jobs:
       - name: Synthetic benchmark (CPU only)
         run: |
           SKIP_GPU=1 CRISPR_GPU_WARMUP=0 BENCH_SCALE=small ./benchmarks/run_synthetic.sh
+      - name: Docker CPU smoke (entrypoint + /out/report.json)
+        run: |
+          docker build -f docker/Dockerfile.cpu -t crispr-gpu:cpu .
+          rm -rf docker_out
+          mkdir -p docker_out
+          docker run --rm -v "$PWD/docker_out:/out" crispr-gpu:cpu --out-dir /out --quick --skip-gpu --redact
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = Path("docker_out/report.json")
+          assert p.exists(), f"missing {p}"
+          r = json.loads(p.read_text(encoding="utf-8"))
+          assert r.get("schema") == "crispr-gpu/report/v1"
+          assert int(r.get("schema_version", 0)) == 1
+          print("docker report ok")
+          PY

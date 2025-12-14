@@ -45,6 +45,6 @@
   "tool": {
     "cuda_enabled": false,
     "name": "crispr-gpu",
-    "version": "0.1.0"
+    "version": "0.2.0"
   }
 }
