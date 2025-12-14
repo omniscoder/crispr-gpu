@@ -1,9 +1,35 @@
 {
+  "artifacts": {
+    "bench_synthetic.jsonl": {
+      "sha256": "661f98eb0d37e23ea5cb1015a4f20d3f3f64ed042c7428b4e5ef531d76b3821f",
+      "size_bytes": 565
+    },
+    "demo/demo.fa": {
+      "sha256": "ddbea6a004469cfd13ba0098b8e590d9dfab6c77bd826957e954d16efd300f07",
+      "size_bytes": 175
+    },
+    "demo/demo.idx": {
+      "sha256": "f2750dc32ae71e4505e2720f9688787ed894c8edc304398cb447a06040c3163f",
+      "size_bytes": 83
+    },
+    "demo/demo_guides.tsv": {
+      "sha256": "5ca9b890148f17f34dcdcefc61c51672f68a6f2180a29dfaa5b99d1d7d8f8099",
+      "size_bytes": 46
+    },
+    "demo/score_cpu.json": {
+      "sha256": "e1eafe9d6eeafb7a074ee6252a0acacbcea19c31c5f7bbc07da8329a7afe614a",
+      "size_bytes": 955
+    },
+    "report.md": {
+      "sha256": "340ff7e0eff45e02d53a905f8c1349be56a69168fdf6e18b0b5e7d7aee1dfe3c",
+      "size_bytes": 623
+    }
+  },
   "benchmarks": [
     {
       "bench": "synthetic",
       "cgct_candidates_per_sec": {
-        "cpu": 2115666.667,
+        "cpu": 2538800.0,
         "gpu_cold": null,
         "gpu_warm": null
       },
@@ -11,7 +37,7 @@
         "candidates": 126940,
         "site_count": 12694
       },
-      "generated_at_utc": "2025-12-14T01:37:25+00:00",
+      "generated_at_utc": "2025-12-14T02:17:13+00:00",
       "hits": {
         "cpu": 0,
         "gpu": 0
@@ -30,7 +56,7 @@
       "schema_version": 1,
       "timing_sec": {
         "build_index": 0.06,
-        "cpu": 0.06,
+        "cpu": 0.05,
         "gpu_cold": null,
         "gpu_warm": null
       },
@@ -47,17 +73,17 @@
       "gpu_num_hits": null
     },
     "timings_sec": {
-      "index_build": 0.007971772000018973,
-      "score_cpu": 0.0035198910009057727
+      "index_build": 0.007896008000898291,
+      "score_cpu": 0.0028552990006573964
     }
   },
-  "generated_at_utc": "2025-12-14T01:37:25+00:00",
+  "generated_at_utc": "2025-12-14T02:17:13+00:00",
   "kernel_microbench": null,
   "provenance": {
     "git": {
-      "describe": "v0.2.0-fm-baseline-16-gf5066db",
+      "describe": "v0.2.0-fm-baseline-18-g7bfa020",
       "dirty": false,
-      "head": "f5066db86e266312bf961f6103e4b0dd40a35966",
+      "head": "7bfa02053a6fde1e706967af6f3703563fb3a976",
       "present": true
     },
     "system": {
@@ -82,9 +108,23 @@
       "cxx": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
       "env": {},
       "nvcc": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2023 NVIDIA Corporation\nBuilt on Fri_Jan__6_16:45:21_PST_2023\nCuda compilation tools, release 12.0, V12.0.140\nBuild cuda_12.0.r12.0/compiler.32267302_0",
-      "nvidia_smi": "Sat Dec 13 17:37:26 2025       \n+-----------------------------------------------------------------------------------------+\n| NVIDIA-SMI 580.105.07             Driver Version: 581.80         CUDA Version: 13.0     |\n+-----------------------------------------+------------------------+----------------------+\n| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |\n| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |\n|                                         |                        |               MIG M. |\n|=========================================+========================+======================|\n|   0  NVIDIA GeForce GTX 1060        On  |   00000000:01:00.0 Off |                  N/A |\n| N/A   69C    P0             23W /   88W |       0MiB /   6144MiB |      1%      Default |\n|                                         |                        |                  N/A |\n+-----------------------------------------+------------------------+----------------------+\n\n+-----------------------------------------------------------------------------------------+\n| Processes:                                                                              |\n|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |\n|        ID   ID                                                               Usage      |\n|=========================================================================================|\n|  No running processes found                                                             |\n+-----------------------------------------------------------------------------------------+"
+      "nvidia_smi": "Sat Dec 13 18:17:14 2025       \n+-----------------------------------------------------------------------------------------+\n| NVIDIA-SMI 580.105.07             Driver Version: 581.80         CUDA Version: 13.0     |\n+-----------------------------------------+------------------------+----------------------+\n| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |\n| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |\n|                                         |                        |               MIG M. |\n|=========================================+========================+======================|\n|   0  NVIDIA GeForce GTX 1060        On  |   00000000:01:00.0 Off |                  N/A |\n| N/A   66C    P0             23W /   88W |       0MiB /   6144MiB |      1%      Default |\n|                                         |                        |                  N/A |\n+-----------------------------------------+------------------------+----------------------+\n\n+-----------------------------------------------------------------------------------------+\n| Processes:                                                                              |\n|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |\n|        ID   ID                                                               Usage      |\n|=========================================================================================|\n|  No running processes found                                                             |\n+-----------------------------------------------------------------------------------------+"
     }
   },
   "schema": "crispr-gpu/report/v1",
-  "schema_version": 1
+  "schema_version": 1,
+  "schemas_used": [
+    {
+      "schema": "crispr-gpu/bench_run/v1",
+      "schema_version": 1
+    },
+    {
+      "schema": "crispr-gpu/report/v1",
+      "schema_version": 1
+    },
+    {
+      "schema": "crispr-gpu/score_result/v1",
+      "schema_version": 1
+    }
+  ]
 }

@@ -4,34 +4,34 @@
       "chrom": "chr1",
       "guide": "g1",
       "mismatches": 0,
-      "pos": 0,
+      "pos": 40,
       "score": 1.0,
       "strand": "+"
     },
     {
       "chrom": "chr1",
-      "guide": "g2",
-      "mismatches": 4,
-      "pos": 0,
-      "score": 0.20000000298023224,
+      "guide": "g1",
+      "mismatches": 1,
+      "pos": 104,
+      "score": 0.5,
       "strand": "+"
     }
   ],
   "index": {
-    "both_strands": true,
-    "guide_length": 4,
+    "both_strands": false,
+    "guide_length": 20,
     "num_chromosomes": 1,
-    "num_sites": 1,
+    "num_sites": 2,
     "pam": "NGG",
     "path": "/tmp/crispr-gpu-sample-report/demo/demo.idx"
   },
   "input": {
     "guides_path": "/tmp/crispr-gpu-sample-report/demo/demo_guides.tsv",
-    "num_guides": 2
+    "num_guides": 1
   },
   "params": {
     "backend": "cpu",
-    "max_mm": 4,
+    "max_mm": 1,
     "score_model": "hamming",
     "score_table": null,
     "search_backend": "brute",
