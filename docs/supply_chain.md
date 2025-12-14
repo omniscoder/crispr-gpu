@@ -21,17 +21,19 @@ DIGEST="sha256:..."   # immutable digest, not a tag
 Verify the signature for the digest:
 ```bash
 cosign verify \
-  --certificate-identity-regexp '^https://github.com/omniscoder/crispr-gpu/.github/workflows/docker-publish\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$' \
+  --certificate-identity-regexp '^https://github.com/omniscoder/crispr-gpu/.github/workflows/docker-publish\.yml@refs/(tags/v[0-9]+\.[0-9]+\.[0-9]+|heads/master)$' \
   --certificate-issuer 'https://token.actions.githubusercontent.com' \
   "${IMAGE}@${DIGEST}"
 ```
+
+If you want *strict release-only* verification, tighten the identity to `@refs/tags/vX.Y.Z` instead of allowing `@refs/heads/master`.
 
 ## Verify an SBOM attestation exists (same digest)
 
 ```bash
 cosign verify-attestation \
   --type spdxjson \
-  --certificate-identity-regexp '^https://github.com/omniscoder/crispr-gpu/.github/workflows/docker-publish\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$' \
+  --certificate-identity-regexp '^https://github.com/omniscoder/crispr-gpu/.github/workflows/docker-publish\.yml@refs/(tags/v[0-9]+\.[0-9]+\.[0-9]+|heads/master)$' \
   --certificate-issuer 'https://token.actions.githubusercontent.com' \
   "${IMAGE}@${DIGEST}"
 ```
@@ -48,4 +50,3 @@ docker run --rm \
   -v "$(pwd)/reports_docker:/out" \
   "${IMAGE}@${DIGEST}"
 ```
-

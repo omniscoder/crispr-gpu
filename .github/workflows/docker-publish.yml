@@ -193,3 +193,17 @@ jobs:
         run: |
           set -euo pipefail
           cosign attest --yes --type spdxjson --predicate sbom.spdx.json "${{ steps.image.outputs.image }}@${{ steps.image.outputs.digest }}"
+
+      - name: Publish summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "### crispr-gpu CPU image published"
+            echo ""
+            echo "- Image: \`${{ steps.image.outputs.image }}@${{ steps.image.outputs.digest }}\`"
+            echo "- Cosign signature ref: \`${{ steps.cosign.outputs.signature_ref }}\`"
+            echo "- Git ref: \`${{ steps.vars.outputs.tag }}\`"
+            echo "- Git sha: \`${{ steps.git.outputs.sha }}\`"
+            echo "- Workflow run id: \`${{ github.run_id }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
