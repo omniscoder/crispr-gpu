@@ -242,6 +242,8 @@ int main(int argc, char **argv) {
   if (format == "json") {
     std::fprintf(out,
                  "{\n"
+                 "  \"schema\": \"crispr-gpu/kernel_microbench/v1\",\n"
+                 "  \"schema_version\": 1,\n"
                  "  \"device\": {\n"
                  "    \"id\": %d,\n"
                  "    \"name\": \"%s\",\n"

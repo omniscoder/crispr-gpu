@@ -2,6 +2,8 @@
 
 CUDA-accelerated CRISPR off-target search with configurable MIT/CFD scoring, C++/Python APIs, and a single CLI.
 
+**crispr-gpu produces deterministic, schema-versioned benchmark and scoring reports suitable for peer review, CI, and regulated environments.**
+
 ## Quickstart (CLI)
 
 ```bash

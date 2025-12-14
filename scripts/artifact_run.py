@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import platform
+import hashlib
 import shutil
 import subprocess
 import sys
@@ -140,13 +141,33 @@ def run_demo(
     guides = demo_dir / "demo_guides.tsv"
     index = demo_dir / "demo.idx"
 
-    fasta.write_text(">chr1\nAAAAGGGAAAA\n", encoding="utf-8")
-    guides.write_text("name\tsequence\tpam\ng1\tAAAA\tNGG\ng2\tTTTT\tNGG\n", encoding="utf-8")
+    # Micro "realistic" demo: 20nt SpCas9-style guide with one engineered 1-mismatch off-target.
+    # Use --plus-only to avoid reverse-strand PAM matches inflating the tiny example.
+    guide = "GATCTACGATCTACGATCTA"  # 20nt, no "GG" runs (keeps PAM matches minimal)
+    off1 = "GATCTACGATCTACGATCTC"   # 1 mismatch vs guide (last base A->C)
+    pam1 = "AGG"  # NGG
+    pam2 = "TGG"  # NGG
+    spacer = "ATATATATATATATATATATATATATATATATATATATAT"
+    seq = spacer + guide + pam1 + "A" + spacer + off1 + pam2 + "A" + spacer
+    fasta.write_text(">chr1\n" + seq + "\n", encoding="utf-8")
+    guides.write_text("name\tsequence\tpam\ng1\t" + guide + "\tNGG\n", encoding="utf-8")
 
     timings: dict[str, float] = {}
 
     rc, out, err, dt = run_cmd(
-        [crispr_gpu, "index", "--fasta", str(fasta), "--pam", "NGG", "--guide-length", "4", "--out", str(index)],
+        [
+            crispr_gpu,
+            "index",
+            "--fasta",
+            str(fasta),
+            "--pam",
+            "NGG",
+            "--guide-length",
+            "20",
+            "--plus-only",
+            "--out",
+            str(index),
+        ],
         cwd=REPO_ROOT,
     )
     timings["index_build"] = dt
@@ -165,7 +186,7 @@ def run_demo(
             "--guides",
             str(guides),
             "--max-mm",
-            "4",
+            "1",
             "--score-model",
             "hamming",
             "--backend",
@@ -198,7 +219,7 @@ def run_demo(
                 "--guides",
                 str(guides),
                 "--max-mm",
-                "4",
+                "1",
                 "--score-model",
                 "hamming",
                 "--backend",
@@ -281,6 +302,30 @@ def maybe_run_kernel_microbench(
     if rc != 0 or not out_path.exists():
         return None
     return json.loads(out_path.read_text(encoding="utf-8"))
+
+
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def collect_artifact_hashes(out_dir: Path) -> dict[str, Any]:
+    # Hash everything under out_dir except transient stdout/stderr capture.
+    # (Those are kept for debugging but are not treated as stable artifacts.)
+    hashes: dict[str, Any] = {}
+    for p in sorted(out_dir.rglob("*")):
+        if p.is_dir():
+            continue
+        rel = p.relative_to(out_dir).as_posix()
+        if rel == "report.json":
+            continue
+        if rel.endswith(".stdout.txt") or rel.endswith(".stderr.txt"):
+            continue
+        hashes[rel] = {"sha256": sha256_file(p), "size_bytes": p.stat().st_size}
+    return hashes
 
 
 def load_json(path: Path) -> Any:
@@ -450,6 +495,22 @@ def main() -> int:
         "version": maybe_cmd_output([crispr_gpu, "--version"], cwd=REPO_ROOT),
     }
 
+    schemas_used: dict[tuple[str, int], None] = {}
+    schemas_used[("crispr-gpu/report/v1", 1)] = None
+    for row in bench_rows:
+        try:
+            schemas_used[(str(row["schema"]), int(row["schema_version"]))] = None
+        except Exception:
+            pass
+    if cpu_score and "schema" in cpu_score and "schema_version" in cpu_score:
+        schemas_used[(str(cpu_score["schema"]), int(cpu_score["schema_version"]))] = None
+    if kernel_microbench and "schema" in kernel_microbench and "schema_version" in kernel_microbench:
+        schemas_used[(str(kernel_microbench["schema"]), int(kernel_microbench["schema_version"]))] = None
+
+    report["schemas_used"] = [
+        {"schema": k[0], "schema_version": k[1]} for k in sorted(schemas_used.keys())
+    ]
+
     if args.redact:
         sysinfo = report.get("provenance", {}).get("system", {})
         if isinstance(sysinfo, dict):
@@ -469,6 +530,10 @@ def main() -> int:
     report_md = out_dir / "report.md"
     write_report_json(report, report_json)
     write_report_md(report, report_md)
+
+    report["artifacts"] = collect_artifact_hashes(out_dir)
+    # Re-write JSON now that we have hashes.
+    write_report_json(report, report_json)
 
     print(f"Wrote: {report_json}")
     print(f"Wrote: {report_md}")

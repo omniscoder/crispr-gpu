@@ -76,3 +76,5 @@ cmake --build build -j --target kernel_microbench
 Key knobs:
 - `--hit-fraction` (default 0.0): fraction of sites that are exact matches (mm=0). Use `1.0` to include worst-case atomic/hit-write overhead.
 - `--iters` / `--warmup`: stabilize timing; `cgct_candidates_per_sec` is computed from mean kernel time.
+
+The JSON output includes a schema header (`crispr-gpu/kernel_microbench/v1`); see `schemas/kernel_microbench.v1.json`.

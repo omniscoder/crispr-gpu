@@ -89,3 +89,11 @@ python3 scripts/artifact_run.py --out-dir reports/latest --quick
 Output files:
 - `reports/latest/report.json` (schema: `schemas/report.v1.json`)
 - `reports/latest/report.md`
+
+## Schema evolution policy
+
+This repo treats machine-readable artifacts as a stable interface.
+
+- **Within `v1`**: changes are additive only (new optional fields / new schema files), never breaking.
+- **Breaking changes**: require a new schema version (`v2`) shipped side-by-side with `v1`.
+- `report.json` declares which schema IDs/versions are used by the produced artifacts.

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omniscoder.github.io/crispr-gpu/schemas/kernel_microbench.v1.json",
+  "title": "crispr-gpu kernel microbenchmark output (v1)",
+  "type": "object",
+  "required": ["schema", "schema_version", "device", "kernel", "timing", "results"],
+  "properties": {
+    "schema": { "const": "crispr-gpu/kernel_microbench/v1" },
+    "schema_version": { "const": 1 },
+    "device": { "type": "object" },
+    "kernel": { "type": "object" },
+    "timing": { "type": "object" },
+    "results": { "type": "object" }
+  },
+  "additionalProperties": true
+}
+
