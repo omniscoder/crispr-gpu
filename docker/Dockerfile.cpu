@@ -1,5 +1,15 @@
 FROM ubuntu:24.04
 
+ARG CRISPR_GPU_IMAGE_REPOSITORY=""
+ARG CRISPR_GPU_GIT_REF=""
+ARG CRISPR_GPU_GIT_SHA=""
+ARG CRISPR_GPU_GITHUB_RUN_ID=""
+
+ENV CRISPR_GPU_IMAGE_REPOSITORY=$CRISPR_GPU_IMAGE_REPOSITORY
+ENV CRISPR_GPU_GIT_REF=$CRISPR_GPU_GIT_REF
+ENV CRISPR_GPU_GIT_SHA=$CRISPR_GPU_GIT_SHA
+ENV CRISPR_GPU_GITHUB_RUN_ID=$CRISPR_GPU_GITHUB_RUN_ID
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -30,4 +40,3 @@ VOLUME ["/out"]
 
 ENTRYPOINT ["python3", "scripts/artifact_run.py"]
 CMD ["--out-dir", "/out", "--quick", "--skip-gpu"]
-

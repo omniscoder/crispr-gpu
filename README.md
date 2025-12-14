@@ -71,6 +71,7 @@ pip install .
 - docs/benchmarks.md
 - docs/methods.md
 - docs/reproducibility.md
+- docs/supply_chain.md
 - docs/schemas.md
 
 ## Synthetic Benchmark (quick sanity)

@@ -7,6 +7,8 @@ These images are intended for artifact evaluation: run a deterministic demo + sy
 - CPU (stable releases): `ghcr.io/omniscoder/crispr-gpu-cpu:vX.Y.Z`
 - CPU (newest stable): `ghcr.io/omniscoder/crispr-gpu-cpu:latest`
 
+Note: do **not** use `:latest` for scientific claims; pin a release tag or (preferably) an immutable digest `@sha256:...`.
+
 ## CPU image
 
 Build:

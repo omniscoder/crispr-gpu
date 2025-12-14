@@ -110,6 +110,29 @@ def collect_tool_provenance(repo_root: Path) -> dict[str, Any]:
     return tools
 
 
+def collect_container_provenance() -> dict[str, Any]:
+    env_map = {
+        "CRISPR_GPU_IMAGE_REPOSITORY": "image_repository",
+        "CRISPR_GPU_IMAGE_DIGEST": "image_digest",
+        "CRISPR_GPU_COSIGN_SIGNATURE": "cosign_signature",
+        "CRISPR_GPU_GITHUB_RUN_ID": "github_run_id",
+        "CRISPR_GPU_GIT_REF": "git_ref",
+        "CRISPR_GPU_GIT_SHA": "git_sha",
+    }
+
+    d: dict[str, Any] = {}
+    for env_key, out_key in env_map.items():
+        v = os.environ.get(env_key)
+        if v:
+            d[out_key] = v
+
+    # Best-effort container detection.
+    if Path("/.dockerenv").exists() or os.environ.get("container"):
+        d["inside_container"] = True
+
+    return d
+
+
 def cuda_available_py() -> Optional[bool]:
     try:
         import crispr_gpu as cg  # type: ignore
@@ -350,6 +373,7 @@ def write_report_md(report: dict[str, Any], path: Path) -> None:
     demo = report.get("demo", {})
     prov = report.get("provenance", {})
     git = prov.get("git", {})
+    container = prov.get("container", {})
     sysinfo = prov.get("system", {})
     tools = prov.get("tools", {})
 
@@ -361,6 +385,17 @@ def write_report_md(report: dict[str, Any], path: Path) -> None:
         lines.append(f"- Git: `{git.get('describe')}`")
     lines.append(f"- Platform: `{sysinfo.get('platform')}`")
     lines.append(f"- Python: `{sysinfo.get('python', {}).get('version')}`")
+    if isinstance(container, dict):
+        img_repo = container.get("image_repository")
+        img_digest = container.get("image_digest")
+        if img_repo and img_digest:
+            lines.append(f"- Image: `{img_repo}@{img_digest}`")
+        elif img_repo:
+            lines.append(f"- Image: `{img_repo}`")
+        if container.get("cosign_signature"):
+            lines.append(f"- Cosign signature: `{container.get('cosign_signature')}`")
+        if container.get("github_run_id"):
+            lines.append(f"- Build run: `{container.get('github_run_id')}`")
     if tools.get("nvcc"):
         lines.append("- NVCC: present")
     if tools.get("nvidia_smi"):
@@ -470,6 +505,7 @@ def main() -> int:
         "generated_at_utc": utc_now_iso(),
         "provenance": {
             "git": collect_git_provenance(REPO_ROOT),
+            "container": collect_container_provenance(),
             "system": collect_system_provenance(),
             "tools": collect_tool_provenance(REPO_ROOT),
         },
