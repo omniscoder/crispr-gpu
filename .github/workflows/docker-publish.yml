@@ -98,7 +98,7 @@ jobs:
           fi
 
           if out="$(docker buildx imagetools inspect "${image}:${tag}" 2>/dev/null)"; then
-            digest="$(printf '%s\n' "$out" | awk -F': ' '/^Digest:/ {print $2; exit}')"
+            digest="$(printf '%s\n' "$out" | awk '/^Digest:/ {sub(/^Digest:[[:space:]]*/, "", $0); print $0; exit}')"
             if [[ -z "$digest" ]]; then
               echo "Unable to parse digest for ${image}:${tag}" >&2
               exit 1
