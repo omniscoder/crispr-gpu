@@ -1,0 +1,1 @@
+Index written to /tmp/crispr-gpu-sample-report/demo/demo.idx with 1 sites

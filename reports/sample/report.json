@@ -1,0 +1,90 @@
+{
+  "benchmarks": [
+    {
+      "bench": "synthetic",
+      "cgct_candidates_per_sec": {
+        "cpu": 2115666.667,
+        "gpu_cold": null,
+        "gpu_warm": null
+      },
+      "derived": {
+        "candidates": 126940,
+        "site_count": 12694
+      },
+      "generated_at_utc": "2025-12-14T01:37:25+00:00",
+      "hits": {
+        "cpu": 0,
+        "gpu": 0
+      },
+      "params": {
+        "genome_len_bp": 100000,
+        "guide_len": 20,
+        "guides": 10,
+        "k": 4,
+        "scale": "small",
+        "score_model": "hamming",
+        "search_backend": "brute",
+        "seed": 0
+      },
+      "schema": "crispr-gpu/bench_run/v1",
+      "schema_version": 1,
+      "timing_sec": {
+        "build_index": 0.06,
+        "cpu": 0.06,
+        "gpu_cold": null,
+        "gpu_warm": null
+      },
+      "tool": "crispr-gpu"
+    }
+  ],
+  "demo": {
+    "cpu_score_result": "demo/score_cpu.json",
+    "gpu_score_result": null,
+    "guides_path": "demo/demo_guides.tsv",
+    "index_path": "demo/demo.idx",
+    "summary": {
+      "cpu_num_hits": 2,
+      "gpu_num_hits": null
+    },
+    "timings_sec": {
+      "index_build": 0.007971772000018973,
+      "score_cpu": 0.0035198910009057727
+    }
+  },
+  "generated_at_utc": "2025-12-14T01:37:25+00:00",
+  "kernel_microbench": null,
+  "provenance": {
+    "git": {
+      "describe": "v0.2.0-fm-baseline-16-gf5066db",
+      "dirty": false,
+      "head": "f5066db86e266312bf961f6103e4b0dd40a35966",
+      "present": true
+    },
+    "system": {
+      "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+      "python": {
+        "version": "3.12.3 (main, Nov  6 2025, 13:44:16) [GCC 13.3.0]"
+      },
+      "uname": {
+        "machine": "x86_64",
+        "processor": "x86_64",
+        "release": "6.6.87.2-microsoft-standard-WSL2",
+        "system": "Linux",
+        "version": "#1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025"
+      }
+    },
+    "tools": {
+      "cmake": "cmake version 3.28.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+      "crispr_gpu": {
+        "path": "crispr-gpu",
+        "version": "0.1.0"
+      },
+      "cxx": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+      "env": {},
+      "nvcc": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2023 NVIDIA Corporation\nBuilt on Fri_Jan__6_16:45:21_PST_2023\nCuda compilation tools, release 12.0, V12.0.140\nBuild cuda_12.0.r12.0/compiler.32267302_0",
+      "nvidia_smi": "Sat Dec 13 17:37:26 2025       \n+-----------------------------------------------------------------------------------------+\n| NVIDIA-SMI 580.105.07             Driver Version: 581.80         CUDA Version: 13.0     |\n+-----------------------------------------+------------------------+----------------------+\n| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |\n| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |\n|                                         |                        |               MIG M. |\n|=========================================+========================+======================|\n|   0  NVIDIA GeForce GTX 1060        On  |   00000000:01:00.0 Off |                  N/A |\n| N/A   69C    P0             23W /   88W |       0MiB /   6144MiB |      1%      Default |\n|                                         |                        |                  N/A |\n+-----------------------------------------+------------------------+----------------------+\n\n+-----------------------------------------------------------------------------------------+\n| Processes:                                                                              |\n|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |\n|        ID   ID                                                               Usage      |\n|=========================================================================================|\n|  No running processes found                                                             |\n+-----------------------------------------------------------------------------------------+"
+    }
+  },
+  "schema": "crispr-gpu/report/v1",
+  "schema_version": 1
+}

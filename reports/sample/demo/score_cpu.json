@@ -1,0 +1,50 @@
+{
+  "hits": [
+    {
+      "chrom": "chr1",
+      "guide": "g1",
+      "mismatches": 0,
+      "pos": 0,
+      "score": 1.0,
+      "strand": "+"
+    },
+    {
+      "chrom": "chr1",
+      "guide": "g2",
+      "mismatches": 4,
+      "pos": 0,
+      "score": 0.20000000298023224,
+      "strand": "+"
+    }
+  ],
+  "index": {
+    "both_strands": true,
+    "guide_length": 4,
+    "num_chromosomes": 1,
+    "num_sites": 1,
+    "pam": "NGG",
+    "path": "/tmp/crispr-gpu-sample-report/demo/demo.idx"
+  },
+  "input": {
+    "guides_path": "/tmp/crispr-gpu-sample-report/demo/demo_guides.tsv",
+    "num_guides": 2
+  },
+  "params": {
+    "backend": "cpu",
+    "max_mm": 4,
+    "score_model": "hamming",
+    "score_table": null,
+    "search_backend": "brute",
+    "sorted": true
+  },
+  "schema": "crispr-gpu/score_result/v1",
+  "schema_version": 1,
+  "summary": {
+    "num_hits": 2
+  },
+  "tool": {
+    "cuda_enabled": false,
+    "name": "crispr-gpu",
+    "version": "0.1.0"
+  }
+}
