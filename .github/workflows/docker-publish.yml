@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref_name }}
+          ref: ${{ github.event.inputs.ref || github.ref_name }}
 
       - uses: docker/setup-buildx-action@v3
 
@@ -51,11 +51,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ref_in="${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref_name }}"
+          ref_in="${{ github.event.inputs.ref || github.ref_name }}"
 
-          want_latest="true"
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            want_latest="${{ inputs.publish_latest }}"
+          want_latest="${{ github.event.inputs.publish_latest }}"
+          if [[ -z "$want_latest" ]]; then
+            want_latest="true"
           fi
 
           tag="$ref_in"
@@ -194,7 +194,7 @@ jobs:
           set -euo pipefail
           cosign attest --yes --type spdxjson --predicate sbom.spdx.json "${{ steps.image.outputs.image }}@${{ steps.image.outputs.digest }}"
 
-      - name: Smoke: run demo inside image (provenance)
+      - name: "Smoke: run demo inside image (provenance)"
         shell: bash
         run: |
           set -euo pipefail
