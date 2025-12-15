@@ -10,6 +10,8 @@ For anything citeable/reproducible, pin either:
 - a release tag (`:vX.Y.Z`), or
 - the immutable digest (`@sha256:...`) — preferred.
 
+If you are verifying a specific released tag, prefer the canonical digest and copy/paste verification commands in that tag’s GitHub Release. This document tracks the current recommended verification flags and may evolve without changing older release artifacts.
+
 ## Verify a release image signature (keyless)
 
 Set these:
