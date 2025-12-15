@@ -21,7 +21,7 @@ Verify the signature for the digest:
 ```bash
 cosign verify \
   --certificate-identity-regexp '^https://github.com/omniscoder/crispr-gpu/.github/workflows/docker-publish\.yml@refs/(tags/v[0-9]+\.[0-9]+\.[0-9]+|heads/master)$' \
-  --certificate-issuer 'https://token.actions.githubusercontent.com' \
+  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
   "${IMAGE_WITH_DIGEST}"
 ```
 
@@ -33,7 +33,7 @@ If you want *strict release-only* verification, tighten the identity to `@refs/t
 cosign verify-attestation \
   --type spdxjson \
   --certificate-identity-regexp '^https://github.com/omniscoder/crispr-gpu/.github/workflows/docker-publish\.yml@refs/(tags/v[0-9]+\.[0-9]+\.[0-9]+|heads/master)$' \
-  --certificate-issuer 'https://token.actions.githubusercontent.com' \
+  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
   "${IMAGE_WITH_DIGEST}"
 ```
 
