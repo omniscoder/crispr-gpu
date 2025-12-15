@@ -130,7 +130,7 @@ Schemas:
 See `docker/README.md` for CPU and CUDA images that run the demo + benchmarks and emit `/out/report.json`.
 
 ## Version
-0.2.0
+0.2.1
 
 ## License
 MIT

@@ -194,6 +194,43 @@ jobs:
           set -euo pipefail
           cosign attest --yes --type spdxjson --predicate sbom.spdx.json "${{ steps.image.outputs.image }}@${{ steps.image.outputs.digest }}"
 
+      - name: Smoke: run demo inside image (provenance)
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf out
+          mkdir -p out
+
+          docker run --rm \
+            -v "$PWD/out:/out" \
+            -e CRISPR_GPU_IMAGE_REPOSITORY="${{ steps.image.outputs.image }}" \
+            -e CRISPR_GPU_IMAGE_DIGEST="${{ steps.image.outputs.digest }}" \
+            -e CRISPR_GPU_COSIGN_SIGNATURE="${{ steps.cosign.outputs.signature_ref }}" \
+            -e CRISPR_GPU_GITHUB_RUN_ID="${{ github.run_id }}" \
+            -e CRISPR_GPU_GIT_REF="${{ steps.vars.outputs.tag }}" \
+            -e CRISPR_GPU_GIT_SHA="${{ steps.git.outputs.sha }}" \
+            "${{ steps.image.outputs.image }}@${{ steps.image.outputs.digest }}" \
+            --out-dir /out --quick --skip-gpu --redact
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = Path("out/report.json")
+          assert p.exists(), f"missing {p}"
+          r = json.loads(p.read_text(encoding="utf-8"))
+          c = (r.get("provenance") or {}).get("container") or {}
+
+          assert c.get("inside_container") is True
+          assert c.get("image_repository")
+          assert c.get("image_digest", "").startswith("sha256:")
+          assert c.get("cosign_signature")
+          assert c.get("github_run_id")
+          assert c.get("git_ref")
+          assert c.get("git_sha")
+          print("container provenance ok")
+          PY
+
       - name: Publish summary
         shell: bash
         run: |

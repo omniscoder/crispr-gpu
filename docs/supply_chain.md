@@ -14,8 +14,7 @@ For anything citeable/reproducible, pin either:
 
 Set these:
 ```bash
-IMAGE="ghcr.io/omniscoder/crispr-gpu-cpu"
-DIGEST="sha256:..."   # immutable digest, not a tag
+IMAGE_WITH_DIGEST="ghcr.io/omniscoder/crispr-gpu-cpu@sha256:..."
 ```
 
 Verify the signature for the digest:
@@ -23,7 +22,7 @@ Verify the signature for the digest:
 cosign verify \
   --certificate-identity-regexp '^https://github.com/omniscoder/crispr-gpu/.github/workflows/docker-publish\.yml@refs/(tags/v[0-9]+\.[0-9]+\.[0-9]+|heads/master)$' \
   --certificate-issuer 'https://token.actions.githubusercontent.com' \
-  "${IMAGE}@${DIGEST}"
+  "${IMAGE_WITH_DIGEST}"
 ```
 
 If you want *strict release-only* verification, tighten the identity to `@refs/tags/vX.Y.Z` instead of allowing `@refs/heads/master`.
@@ -35,13 +34,15 @@ cosign verify-attestation \
   --type spdxjson \
   --certificate-identity-regexp '^https://github.com/omniscoder/crispr-gpu/.github/workflows/docker-publish\.yml@refs/(tags/v[0-9]+\.[0-9]+\.[0-9]+|heads/master)$' \
   --certificate-issuer 'https://token.actions.githubusercontent.com' \
-  "${IMAGE}@${DIGEST}"
+  "${IMAGE_WITH_DIGEST}"
 ```
 
 ## Embed image provenance into `report.json`
 
 If you run the demo inside the container and want the report to be self-describing, inject the digest (and optional cosign signature reference) into the container environment:
 ```bash
+IMAGE="ghcr.io/omniscoder/crispr-gpu-cpu"
+DIGEST="sha256:..."   # immutable digest, not a tag
 SIG="$(cosign triangulate --type signature "${IMAGE}@${DIGEST}")"
 docker run --rm \
   -e CRISPR_GPU_IMAGE_REPOSITORY="${IMAGE}" \
