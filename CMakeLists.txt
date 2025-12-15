@@ -63,6 +63,7 @@ if(CRISPR_GPU_ENABLE_CUDA)
   find_package(CUDAToolkit REQUIRED)
   list(APPEND CRISPR_GPU_BASE_SOURCES src/kernels.cu)
 else()
+  message(STATUS "CUDA disabled (CRISPR_GPU_ENABLE_CUDA=OFF)")
   add_definitions(-DCRISPR_GPU_CPU_ONLY)
 endif()
 

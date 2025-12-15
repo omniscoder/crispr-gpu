@@ -21,7 +21,8 @@ jobs:
       - name: Build sdist only (CPU-only to avoid CUDA dependency)
         run: python -m build --sdist
         env:
-          SKBUILD_CONFIGURE_OPTIONS: "-DCRISPR_GPU_ENABLE_CUDA=OFF"
+          SKBUILD_CMAKE_ARGS: "-DCRISPR_GPU_ENABLE_CUDA=OFF"
+          CMAKE_ARGS: "-DCRISPR_GPU_ENABLE_CUDA=OFF"
       - name: Build CPU CLI (for sample bundle)
         run: |
           cmake -B build_cli -S . \

@@ -12,10 +12,9 @@ source:
 build:
   number: 0
   string: "{{ PKG_BUILDNUM }}_py{{ PY_VER }}_{{ 'gpu' if cuda_enabled == 1 else 'cpu' }}"
-  script_env:
-    - SKBUILD_CONFIGURE_OPTIONS
   script: >
-    SKBUILD_CONFIGURE_OPTIONS="{{ skbuild_configure_options }}"
+    SKBUILD_CMAKE_ARGS="${SKBUILD_CMAKE_ARGS} {{ skbuild_configure_options }}"
+    CMAKE_ARGS="${CMAKE_ARGS} {{ skbuild_configure_options }}"
     {{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv
 
 requirements:
